@@ -321,6 +321,12 @@
     <string name="label_pin">Pin</string>
     <string name="label_scan_qr">Scan QR</string>
 
+    <!-- Links: open / copy from the results sheet -->
+    <string name="menu_open_in_browser">Open in browser</string>
+    <string name="menu_copy_url">Copy link</string>
+    <string name="cd_link_options">Link options</string>
+    <string name="toast_link_copied">Link copied</string>
+
     <!-- QR Code Result Sheet -->
     <string name="qr_scanning">Scanning…</string>
     <string name="qr_not_found">No QR code found in that area.</string>

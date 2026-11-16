@@ -181,6 +181,9 @@ import dev.davidv.translator.ui.components.DetectedRegions
 import dev.davidv.translator.ui.components.ImageWordSelection
 import dev.davidv.translator.ui.components.ScanAnimationOverlay
 import dev.davidv.translator.ui.components.WordSelectionOverlay
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -199,6 +202,9 @@ import android.os.Build
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Surface
 
 
@@ -1401,6 +1407,47 @@ fun SearchAndTranslateScreen(
                     Box(Modifier.width(headerCell), contentAlignment = Alignment.Center) {
                         OverlayRoundButton(onClick = { shareSelection() }, size = headerButton) {
                             Icon(Icons.Default.Share, contentDescription = stringResource(R.string.label_share))
+                        }
+                    }
+                }
+                // Open / copy the page the results are showing. Only once something has
+                // actually been loaded (a placeholder or blank tab has no useful URL).
+                val currentUrl = webViews[selectedEngine]?.url ?: searchUrl
+                if (currentUrl != null && (currentUrl.startsWith("http://") || currentUrl.startsWith("https://"))) {
+                    var linkMenuOpen by remember { mutableStateOf(false) }
+                    Box(Modifier.width(headerCell), contentAlignment = Alignment.Center) {
+                        OverlayRoundButton(onClick = { linkMenuOpen = true }, size = headerButton) {
+                            Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link_options))
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = linkMenuOpen,
+                            onDismissRequest = { linkMenuOpen = false }
+                        ) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_open_in_browser)) },
+                                leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
+                                onClick = {
+                                    linkMenuOpen = false
+                                    runCatching {
+                                        context.startActivity(
+                                            android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(currentUrl))
+                                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        )
+                                    }.onFailure {
+                                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(stringResource(R.string.menu_copy_url)) },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                                onClick = {
+                                    linkMenuOpen = false
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(ClipData.newPlainText(currentUrl, currentUrl))
+                                    android.widget.Toast.makeText(context, context.getString(R.string.toast_link_copied), android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            )
                         }
                     }
                 }
