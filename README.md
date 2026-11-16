@@ -20,7 +20,13 @@ Draw a circle around anything on your screen – then **search** it or **transla
 ### 🔍 Search
 - **Circle to select**: Draw a circle or scribble around anything on the screen – or skip the circle and use the whole screen.
 - **Search or Translate**: After circling, tap *Search* or *Translate* in the bottom bar – or set one of them as the default (Settings › Search).
+- **Search method**: Multi-Search (the results sheet) or Google Lens, chosen in Settings › Search. With *Google Lens* the circled area is handed straight to Lens instead of opening the results tabs.
 - **Image search engines**: Google, Bing and TinEye, each in its own results tab. Your cookie-banner choice for Google and Bing is remembered.
+- **Scan QR codes**: The *Scan QR* button decodes the circled area – or the whole screen when nothing is selected – and lists everything it finds, with the action that fits: open or copy a link, copy the Wi-Fi password, call or message a number, search a product barcode, add a contact, open the coordinates, translate a text.
+- **Open or copy a link**: In the search results, the *Link* button opens the page in your browser or copies its URL.
+- **Fullscreen**: selects the whole screen as one area, so Share / Search / Translate / Pin act on it even while a circle is drawn.
+- **Pin**: floats the selection as a sticker over other apps — drag it around, resize it, it follows the device tilt.
+- **Song recognition**: The *Song* button recognizes what is playing. It opens the app you pick in Settings › Search, otherwise Shazam, SoundHound or the Google app's song search.
 - **Share**: Share the circled area or the whole screen, also directly from the search results.
 
 ### 🌐 Translate (offline)
@@ -43,10 +49,10 @@ Draw a circle around anything on your screen – then **search** it or **transla
 
 ## 🔑 Permissions
 
-- **Accessibility service** – used to take a screenshot when you start the app (status-bar double-tap, quick-settings tile, default assistant) and to draw the translation over other apps. It does not read or collect anything in the background. The service is enabled with a plain on/off switch in the system settings; CTS does not request an accessibility shortcut or button.
+- **Accessibility service** – used to take a screenshot when you start the app (status-bar double-tap, quick-settings tile, default assistant), to draw the translation over other apps and to keep a pinned selection on top of other apps. It does not read or collect anything in the background. The service is enabled with a plain on/off switch in the system settings; CTS does not request an accessibility shortcut or button.
 - **Default assistant** (optional) – lets you start the app with a home-button long-press or corner swipe, without the accessibility service (needs "Use screenshot" on in the assistant settings).
 - **Internet** – only for image search and downloading language packs.
-- Also requested: **storage** (language packs), **notifications** (download progress), **list of installed apps** (picking apps in the settings), **start at boot** and **screen capture** (used by the translator module).
+- Also requested: **storage** (language packs), **notifications** (download progress), **list of installed apps** (choosing the song-recognition app and the overlay's app shortcuts), **start at boot** and **screen capture** (used by the translator module).
 
 ---
 ## ℹ️ About
