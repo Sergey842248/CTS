@@ -22,4 +22,5 @@ C:\Users\ashin\AndroidStudioProjects\SearchAndTranslate\logs.md
 /app/release/
 
 
-/.ORIGINAL-CTS
+# Reference copy of the original CircleToSearch repo – never committed
+/ORIGINAL-CTS/
