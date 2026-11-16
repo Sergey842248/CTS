@@ -94,9 +94,9 @@ import androidx.lifecycle.Lifecycle
 import com.future.cts.R
 import kotlinx.coroutines.launch
 
-private const val GITHUB_URL = "https://github.com/fuzzyfly0/SearchAndTranslate"
+private const val GITHUB_URL = "https://github.com/Sergey842248/CTS"
 private const val ORIGINAL_URL = "https://github.com/AKS-Labs/CircleToSearch"
-private const val LICENSES_URL = "https://github.com/fuzzyfly0/SearchAndTranslate/blob/main/licenses/THIRD_PARTY_LICENSES.md"
+private const val LICENSES_URL = "https://github.com/Sergey842248/CTS/blob/main/licenses/THIRD_PARTY_LICENSES.md"
 private const val MAX_PULL_PX = 160f
 private const val PULL_HAPTIC_PX = 120f
 

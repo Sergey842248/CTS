@@ -784,7 +784,7 @@ private fun AboutSettingsScreen(onBack: () -> Unit) {
                 subtitle = stringResource(R.string.about_source_subtitle),
                 onClick = {
                     try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/fuzzyfly0/SearchAndTranslate")))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Sergey842248/CTS")))
                     } catch (e: Exception) {
                         android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
                     }
@@ -797,7 +797,7 @@ private fun AboutSettingsScreen(onBack: () -> Unit) {
                 subtitle = stringResource(R.string.about_licenses_subtitle),
                 onClick = {
                     try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/fuzzyfly0/SearchAndTranslate/blob/main/licenses/THIRD_PARTY_LICENSES.md")))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Sergey842248/CTS/blob/main/licenses/THIRD_PARTY_LICENSES.md")))
                     } catch (e: Exception) {
                         android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
                     }
