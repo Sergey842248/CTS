@@ -2106,6 +2106,7 @@ fun SearchAndTranslateScreen(
                                                 val holdJob = holdScope.launch {
                                                     delay(3000)
                                                     holdFired = true
+                                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                                                     onHold()
                                                 }
                                                 try {
