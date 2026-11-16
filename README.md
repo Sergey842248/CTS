@@ -1,16 +1,16 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/icon.png" width="160" height="160">
-  <h1>Search & Translate</h1>
+  <h1>CTS</h1>
   <p><strong>Circle anything on your screen to search or translate it</strong></p>
   <p>
     <a href="LICENSE"><img alt="License GPL-3.0" src="https://img.shields.io/badge/License-GPL--3.0-blue.svg?style=flat-square"></a>
-    <a href="https://github.com/fuzzyfly0/SearchAndTranslate/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/fuzzyfly0/SearchAndTranslate/total?color=ff9500&style=flat-square"></a>
+    <a href="https://github.com/Sergey842248/CTS/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Sergey842248/CTS/total?color=ff9500&style=flat-square"></a>
   </p>
-  <p>📥 <a href="https://github.com/fuzzyfly0/SearchAndTranslate/releases/latest"><strong>Download the latest release</strong></a></p>
+  <p>📥 <a href="https://github.com/Sergey842248/CTS/releases/latest"><strong>Download the latest release</strong></a></p>
 </div>
 
 ---
-## 🎯 What is Search & Translate?
+## 🎯 What is CTS?
 
 Draw a circle around anything on your screen – then **search** it or **translate** it right where it is. Works on any Android 10+ phone, no Google app or Play Services required for translation and text recognition.
 
@@ -38,7 +38,7 @@ Draw a circle around anything on your screen – then **search** it or **transla
 ## 📋 Requirements
 
 - Android 10 or newer.
-- Download the APK ending in **`arm64-v8a`** from the [releases](https://github.com/fuzzyfly0/SearchAndTranslate/releases) – it fits almost every current phone. Use `armeabi-v7a` only for old 32-bit devices.
+- Download the APK ending in **`arm64-v8a`** from the [releases](https://github.com/Sergey842248/CTS/releases) – it fits almost every current phone. Use `armeabi-v7a` only for old 32-bit devices.
 - For translation, download a language pack once – it contains both the translation and the text-recognition models (Settings › Translator › Language packs).
 
 ## 🔑 Permissions
@@ -51,8 +51,8 @@ Draw a circle around anything on your screen – then **search** it or **transla
 ---
 ## ℹ️ About
 
-**Search & Translate** is a fork of [CircleToSearch](https://github.com/AKS-Labs/CircleToSearch) by [AKSLabs](https://github.com/akslabs), licensed under the [GNU GPL v3](LICENSE). Third-party components are listed in [THIRD_PARTY_LICENSES.md](licenses/THIRD_PARTY_LICENSES.md).
+**CTS** is a fork of [CircleToSearch](https://github.com/AKS-Labs/CircleToSearch) by [AKSLabs](https://github.com/akslabs), licensed under the [GNU GPL v3](LICENSE). Third-party components are listed in [THIRD_PARTY_LICENSES.md](licenses/THIRD_PARTY_LICENSES.md).
 
 Google (Google LLC), Bing (Microsoft Corporation) and TinEye (Idée Inc.) are trademarks of their owners and are only named to describe the search services the app can open. This project is not affiliated with or endorsed by AKSLabs, Google, Microsoft or TinEye.
 
-Bug reports and ideas: [GitHub Issues](https://github.com/fuzzyfly0/SearchAndTranslate/issues)
+Bug reports and ideas: [GitHub Issues](https://github.com/Sergey842248/CTS/issues)

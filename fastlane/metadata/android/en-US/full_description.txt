@@ -1,4 +1,4 @@
-Search & Translate: draw a circle around anything on your screen, then search it or translate it right where it is.
+CTS (Circle to Search): draw a circle around anything on your screen, then search it or translate it right where it is.
 
 SEARCH
 • Circle to select, or search the whole screen

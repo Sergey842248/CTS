@@ -274,7 +274,7 @@ private fun WelcomeStep(reducedMotion: Boolean) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-          text = "Search & Translate",
+          text = "CTS",
           style = MaterialTheme.typography.titleLarge.copy(fontFamily = heroFontFamily),
           color = MaterialTheme.colorScheme.onBackground
         )

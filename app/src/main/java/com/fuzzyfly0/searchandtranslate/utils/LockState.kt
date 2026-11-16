@@ -4,7 +4,7 @@ import android.app.KeyguardManager
 import android.content.Context
 
 /**
- * True while the lock screen is showing. Search & Translate never launches then
+ * True while the lock screen is showing. CTS never launches then
  * (no trigger, assistant or tile): it would capture and show the screen of a
  * locked device.
  */

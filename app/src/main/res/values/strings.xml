@@ -18,7 +18,7 @@
   -->
 
 <resources>
-    <string name="app_name">Search &amp; Translate</string>
+    <string name="app_name">CTS</string>
 
     <!-- General -->
     <string name="settings">Settings</string>
@@ -47,7 +47,7 @@
     <string name="unknown_app">Unknown App</string>
 
     <!-- Main Screen -->
-    <string name="header_title">Search &amp; Translate</string>
+    <string name="header_title">CTS</string>
     <string name="toast_getting_started">Set up the permissions, then choose your launch triggers.</string>
     <string name="subtitle_main">Search anything on your screen instantly.</string>
     <string name="label_required">REQUIRED:</string>
@@ -106,7 +106,7 @@
     <string name="toast_screen_off_requires_api">Screen Off requires Android 9+</string>
     <string name="toast_auto_rotate">Auto Rotate: %1$s</string>
     <string name="toast_auto_rotate_permission">Permission required for Auto Rotate</string>
-    <string name="toast_enable_accessibility_tile">Please enable Search &amp; Translate Accessibility Service</string>
+    <string name="toast_enable_accessibility_tile">Please enable the CTS accessibility service</string>
     <string name="toast_save_failed">Save failed</string>
 
     <!-- Share -->
@@ -174,7 +174,7 @@
 
     <!-- Accessibility Disclosure Dialog -->
     <string name="title_accessibility_permission">Grant Accessibility Permission</string>
-    <string name="body_accessibility_permission">This permission is required to capture the screen and detect the double tap gesture to trigger Search &amp; Translate or other actions. If the app is used as your default assistant, this permission is optional.</string>
+    <string name="body_accessibility_permission">This permission is required to capture the screen and detect the double tap gesture to trigger CTS or other actions. If the app is used as your default assistant, this permission is optional.\n\nThe service is enabled with a plain on/off switch — no accessibility shortcut needs to be set up.</string>
     <string name="label_accessibility_agree">I understand how this permission will be used and agree to proceed</string>
 
     <!-- Copy Text Overlay -->
@@ -198,7 +198,7 @@
     <string name="pinned_btn_save">Save</string>
 
     <!-- Tile Service -->
-    <string name="tile_label">Search &amp; Translate</string>
+    <string name="tile_label">CTS</string>
 
 
 
@@ -212,7 +212,7 @@
     <string name="action_lock_screen">Lock Screen</string>
     <string name="action_open_notifications">Open Notifications</string>
     <string name="action_quick_settings">Quick Settings</string>
-    <string name="action_search_auto">Search &amp; Translate</string>
+    <string name="action_search_auto">CTS</string>
     <string name="action_search_lens">Google Lens Search</string>
     <string name="action_search_multi">Multi-Search</string>
     <string name="action_split_screen">Split Screen</string>
@@ -264,7 +264,7 @@
     <string name="section_behavior">BEHAVIOR</string>
     <string name="about_version">Version</string>
     <string name="about_source_code">Source code</string>
-    <string name="about_source_subtitle">github.com/fuzzyfly0/SearchAndTranslate</string>
+    <string name="about_source_subtitle">github.com/Sergey842248/CTS</string>
     <string name="about_licenses">Open-source licenses</string>
     <string name="about_licenses_subtitle">Third-party components and their licenses</string>
     <string name="about_original_project">Original project</string>
@@ -276,9 +276,9 @@
     <string name="wizard_grant">Grant</string>
     <string name="wizard_granted">Granted</string>
     <string name="assistant_sheet_title">Use as your assistant</string>
-    <string name="assistant_sheet_body">Set Search &amp; Translate as your device\'s assistant. Then the normal way your device opens an assistant — long-press Home, hold the gesture handle, etc. — will open Search &amp; Translate instead.</string>
+    <string name="assistant_sheet_body">Set CTS as your device\'s assistant. Then the normal way your device opens an assistant — long-press Home, hold the gesture handle, etc. — will open CTS instead.</string>
     <string name="assistant_opt_set_title">Set as default assistant</string>
-    <string name="home_running_title">Search &amp; Translate</string>
+    <string name="home_running_title">CTS</string>
     <string name="home_running_state">running</string>
     <string name="home_launch_methods">Launch methods</string>
     <string name="home_custom_overlay">Custom overlay</string>
@@ -315,7 +315,7 @@
     <string name="home_languages_subtitle">Source language &amp; language packs</string>
     <string name="label_translator_subtitle">Languages, text recognition &amp; translation options</string>
     <string name="launch_assistant_settings_title">Digital assistant</string>
-    <string name="launch_assistant_settings_subtitle">Set Search &amp; Translate as assistant: long-press Home or hold the gesture bar to open it</string>
+    <string name="launch_assistant_settings_subtitle">Set CTS as assistant: long-press Home or hold the gesture bar to open it</string>
     <string name="launch_a11y_settings_title">Accessibility</string>
     <string name="launch_a11y_settings_subtitle">Turn the accessibility service on: double-tap the top of the screen to open the app</string>
 </resources>

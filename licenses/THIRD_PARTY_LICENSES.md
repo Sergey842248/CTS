@@ -1,6 +1,6 @@
 # Third-party licenses
 
-Search & Translate is licensed under the [GNU General Public License v3.0](../LICENSE).
+CTS is licensed under the [GNU General Public License v3.0](../LICENSE).
 It is a fork of [CircleToSearch](https://github.com/AKS-Labs/CircleToSearch) by AKS Labs (GPL-3.0).
 
 It includes the following third-party components. The full license texts are in this

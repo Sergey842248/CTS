@@ -6,13 +6,13 @@ Categories:
   - Internet
 License: GPL-3.0-or-later
 AuthorName: fuzzyfly0
-SourceCode: https://github.com/fuzzyfly0/SearchAndTranslate
-IssueTracker: https://github.com/fuzzyfly0/SearchAndTranslate/issues
+SourceCode: https://github.com/Sergey842248/CTS
+IssueTracker: https://github.com/Sergey842248/CTS/issues
 
-AutoName: Search & Translate
+AutoName: CTS
 
 RepoType: git
-Repo: https://github.com/fuzzyfly0/SearchAndTranslate
+Repo: https://github.com/Sergey842248/CTS
 
 Builds:
   - versionName: '0.1'
