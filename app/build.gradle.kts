@@ -173,6 +173,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    // QR / barcode decoding for the "Scan QR" action (same version as the reference repo).
+    implementation("com.google.zxing:core:3.5.4")
     implementation("androidx.webkit:webkit:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
 }

@@ -188,9 +188,6 @@
     <string name="toolbar_btn_all">All</string>
     <string name="toolbar_btn_cancel">Cancel</string>
 
-    <!-- Search Method Selector -->
-
-    <!-- Google Lens Helper -->
 
     <!-- Accessibility Service -->
     <string name="pinned_btn_share">Share</string>
@@ -318,4 +315,42 @@
     <string name="launch_assistant_settings_subtitle">Set CTS as assistant: long-press Home or hold the gesture bar to open it</string>
     <string name="launch_a11y_settings_title">Accessibility</string>
     <string name="launch_a11y_settings_subtitle">Turn the accessibility service on: double-tap the top of the screen to open the app</string>
+
+    <!-- Selection action buttons (overlay bottom bar) -->
+    <string name="label_fullscreen">Fullscreen</string>
+    <string name="label_pin">Pin</string>
+    <string name="label_scan_qr">Scan QR</string>
+
+    <!-- QR Code Result Sheet -->
+    <string name="qr_scanning">Scanning…</string>
+    <string name="qr_not_found">No QR code found in that area.</string>
+    <string name="qr_title_default">QR code</string>
+    <string name="qr_vcard_fallback_name">Contact</string>
+    <string name="qr_result_of">Result %1$d of %2$d</string>
+    <string name="qr_title_url">Link</string>
+    <string name="qr_title_wifi">Wi-Fi network</string>
+    <string name="qr_title_phone">Phone number</string>
+    <string name="qr_title_product">Product barcode</string>
+    <string name="qr_title_vcard">Contact</string>
+    <string name="qr_title_geo">Location</string>
+    <string name="qr_title_text">Text</string>
+    <string name="qr_action_open_link">Open link</string>
+    <string name="qr_action_copy">Copy</string>
+    <string name="qr_action_copy_pass">Copy password</string>
+    <string name="qr_action_call">Call</string>
+    <string name="qr_action_sms">Message</string>
+    <string name="qr_action_amazon">Search Amazon</string>
+    <string name="qr_action_google">Search Google</string>
+    <string name="qr_action_maps">Open in Maps</string>
+    <string name="qr_action_search">Search</string>
+    <string name="qr_action_translate">Translate</string>
+    <string name="qr_action_insert_contact">Add to contacts</string>
+    <string name="qr_label_wifi_ssid">Network</string>
+    <string name="qr_label_wifi_pass">Password</string>
+    <string name="qr_label_wifi_security">Security</string>
+    <string name="qr_label_phone">Number</string>
+    <string name="qr_label_barcode">Barcode</string>
+    <string name="qr_label_vcard_name">Name</string>
+    <string name="qr_label_geo">Coordinates</string>
+
 </resources>

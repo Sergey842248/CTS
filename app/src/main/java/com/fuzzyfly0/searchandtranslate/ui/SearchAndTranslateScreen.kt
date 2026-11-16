@@ -173,6 +173,7 @@ import com.fuzzyfly0.searchandtranslate.data.SearchEngine
 import com.fuzzyfly0.searchandtranslate.ui.theme.OverlayGradientColors
 import com.fuzzyfly0.searchandtranslate.utils.ImageSearchUploader
 import com.fuzzyfly0.searchandtranslate.utils.ImageUtils
+import com.fuzzyfly0.searchandtranslate.utils.QrScanner
 import dev.davidv.translator.localizedName
 import com.fuzzyfly0.searchandtranslate.utils.UIPreferences
 import dev.davidv.translator.TranslatorApplication
@@ -197,6 +198,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import android.os.Build
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.Surface
 
 
@@ -588,6 +590,12 @@ fun SearchAndTranslateScreen(
     // Search or Translate in the chooser shown next to the selection. Null = no chooser.
     var pendingChoiceRegion by remember { mutableStateOf<android.graphics.Rect?>(null) }
 
+    // QR scanning: the sheet, the bitmap it decodes (the circle if one is drawn,
+    // otherwise the whole capture) and any results already found on the capture.
+    var showQrSheet by remember { mutableStateOf(false) }
+    var qrScanBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var qrInitialResults by remember { mutableStateOf<List<com.fuzzyfly0.searchandtranslate.utils.QrResultWithBounds>>(emptyList()) }
+
     // The circled area (screen rect + bitmap region) kept while Search, Translate or Lens
     // run on it, so closing them with back brings the circle and its chooser back.
     var savedCircle by remember { mutableStateOf<Pair<android.graphics.Rect, android.graphics.Rect>?>(null) }
@@ -916,6 +924,20 @@ fun SearchAndTranslateScreen(
     )
 
 
+    // Auto-scan the capture for QR codes in the background, so "Scan QR" opens with the
+    // codes it already found instead of decoding the whole image again on the spot.
+    // (The sheet still scans by itself when this comes back empty.)
+    LaunchedEffect(screenshot) {
+        val shot = screenshot
+        if (shot == null) {
+            qrInitialResults = emptyList()
+        } else {
+            val found = withContext(Dispatchers.Default) { QrScanner.scanBitmapAll(shot) }
+            // Discard a scan whose capture was replaced while it ran.
+            if (screenshot === shot) qrInitialResults = found
+        }
+    }
+
     // Instant OCR: recognize the screenshot's words as soon as it arrives (module
     // pipeline, no translation) — shown as tappable words over the frozen capture.
     LaunchedEffect(screenshot) {
@@ -1240,6 +1262,11 @@ fun SearchAndTranslateScreen(
 
     // Back Handler Logic
     BackHandler(enabled = true) {
+        // The QR sheet sits above the selection; Back closes it first.
+        if (showQrSheet) {
+            showQrSheet = false
+            return@BackHandler
+        }
         if (isTranslatorMode) {
             // An open language picker closes first; the translation stays.
             if (SearchAndTranslateAccessibilityService.instance?.dismissTranslatePicker() == true ||
@@ -1409,7 +1436,7 @@ fun SearchAndTranslateScreen(
                     val bitmap = selectedBitmap
                     if (bitmap != null) {
                         isLoading = true
-                        
+
                         // Multi-Search (Expanded UI)
                         scope.launch { scaffoldState.bottomSheetState.expand() }
 
@@ -1905,7 +1932,7 @@ fun SearchAndTranslateScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
-                    // One row on a 5-column grid; buttons are at most 52 dp and the gap
+                    // One card, two rows on a 5-column grid; buttons are at most 52 dp and the gap
                     // between buttons fills the rest of each cell.
                     val cellWidth = maxWidth / 5
                     val buttonSize = (cellWidth - 8.dp).coerceIn(40.dp, 52.dp)
@@ -2064,6 +2091,77 @@ fun SearchAndTranslateScreen(
                                 }
                             }
                         }
+
+                        // ── Second row: Fullscreen, Pin, Scan QR ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            // Fullscreen: select the whole capture as one framed area, so
+                            // Share / Search / Translate / Pin can act on the full screen even
+                            // while a circle is drawn (a circle only replaces the Search and
+                            // Translate buttons' target, it never forces it).
+                            BottomBarButton(stringResource(R.string.label_fullscreen), { Icon(Icons.Default.Fullscreen, null) }) {
+                                val shot = screenshot
+                                if (shot == null) {
+                                    showMissingCaptureSettings()
+                                    return@BottomBarButton
+                                }
+                                if (circleShown && circleRegion != null) saveCircle(selectionRect, circleRegion)
+                                pendingChoiceRegion = null
+                                currentPathPoints.clear()
+                                // Full-image selection in screen space (view size, not bitmap size).
+                                val viewW = if (canvasSizePx.width > 0) canvasSizePx.width else shot.width
+                                val viewH = if (canvasSizePx.height > 0) canvasSizePx.height else shot.height
+                                // Mark the area as searched before it appears (see the Search button).
+                                selectedBitmap = shot
+                                isSearching = true
+                                selectionRect = Rect(0, 0, viewW, viewH)
+                                scope.launch {
+                                    selectionAnim.snapTo(0f)
+                                    selectionAnim.animateTo(1f, tween(600))
+                                }
+                            }
+
+                            // Pin: float the selection as a sticker over other apps. Framed while
+                            // only a circle is drawn — then just the circle is pinned; with no
+                            // selection at all the whole capture is.
+                            BottomBarButton(stringResource(R.string.label_pin), { Icon(Icons.Default.PushPin, null) }, framed = circleShown) {
+                                val shot = screenshot
+                                if (shot == null) {
+                                    showMissingCaptureSettings()
+                                    return@BottomBarButton
+                                }
+                                val rect = selectionRect ?: Rect(
+                                    0, 0,
+                                    if (canvasSizePx.width > 0) canvasSizePx.width else shot.width,
+                                    if (canvasSizePx.height > 0) canvasSizePx.height else shot.height,
+                                )
+                                val target = selectionBitmapOrNull() ?: shot
+                                if (SearchAndTranslateAccessibilityService.pinArea(target, rect)) {
+                                    onClose()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(R.string.toast_accessibility_permission_needed),
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
+                            // Scan QR: decode the circled area (or the whole capture) and list
+                            // everything found — open / copy a link, call, Wi-Fi details, …
+                            BottomBarButton(stringResource(R.string.label_scan_qr), { Icon(Icons.Default.QrCode, null) }) {
+                                val shot = screenshot
+                                if (shot == null) {
+                                    showMissingCaptureSettings()
+                                    return@BottomBarButton
+                                }
+                                qrScanBitmap = selectionBitmapOrNull() ?: shot
+                                showQrSheet = true
+                            }
+
+                        }
                     }
                     }
                 }
@@ -2071,6 +2169,41 @@ fun SearchAndTranslateScreen(
 
 
 
+
+        // QR result sheet: scans the selected area (or the whole capture) and lists what
+        // it found, with per-type actions (open / copy / call / Wi-Fi details / …).
+        // Scrim (2500) above the bottom bar (2000), sheet (3000) above the scrim, both
+        // below the translator input shield (4000).
+        if (showQrSheet) {
+            // Full-screen invisible-ish backdrop: dims the chrome and catches taps
+            // outside the sheet, which dismiss it (Back does the same).
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(2500f)
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { showQrSheet = false }
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp)
+                    .zIndex(3000f),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                com.fuzzyfly0.searchandtranslate.ui.QrCodeResultSheet(
+                    context = context,
+                    bitmap = qrScanBitmap,
+                    onDismiss = { showQrSheet = false },
+                    initialResults = qrInitialResults
+                )
+            }
+        }
 
         // Input shield while the translator overlay owns the screen: consumes touches so
         // the hidden chrome underneath can't be tapped (module windows sit above this).
