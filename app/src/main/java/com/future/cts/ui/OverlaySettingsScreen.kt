@@ -771,6 +771,14 @@ private fun AboutSettingsScreen(onBack: () -> Unit) {
         onBack = onBack
     ) {
         Spacer(modifier = Modifier.height(8.dp))
+        // One helper instead of the same try/catch in every row.
+        fun openUrl(url: String) {
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
         SettingsGroup {
             SettingsValueRow(
                 icon = Icons.Default.Android,
@@ -782,39 +790,29 @@ private fun AboutSettingsScreen(onBack: () -> Unit) {
                 icon = Icons.Default.Code,
                 title = stringResource(R.string.about_source_code),
                 subtitle = stringResource(R.string.about_source_subtitle),
-                onClick = {
-                    try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Sergey842248/CTS")))
-                    } catch (e: Exception) {
-                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
+                onClick = { openUrl("https://github.com/Sergey842248/CTS") }
             )
             SettingsGroupDivider()
             SettingsLinkRow(
                 icon = Icons.Default.Description,
                 title = stringResource(R.string.about_licenses),
                 subtitle = stringResource(R.string.about_licenses_subtitle),
-                onClick = {
-                    try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Sergey842248/CTS/blob/main/licenses/THIRD_PARTY_LICENSES.md")))
-                    } catch (e: Exception) {
-                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
+                onClick = { openUrl("https://github.com/Sergey842248/CTS/blob/main/licenses/THIRD_PARTY_LICENSES.md") }
             )
             SettingsGroupDivider()
             SettingsLinkRow(
                 icon = Icons.Default.Info,
                 title = stringResource(R.string.about_original_project),
                 subtitle = stringResource(R.string.about_original_project_subtitle),
-                onClick = {
-                    try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/AKS-Labs/CircleToSearch")))
-                    } catch (e: Exception) {
-                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
+                onClick = { openUrl("https://github.com/AKS-Labs/CircleToSearch") }
+            )
+            // The SearchAndTranslate lineage this build is also based on.
+            SettingsGroupDivider()
+            SettingsLinkRow(
+                icon = Icons.Default.ForkRight,
+                title = stringResource(R.string.about_based_on),
+                subtitle = stringResource(R.string.about_based_on_subtitle),
+                onClick = { openUrl("https://github.com/fuzzyfly0/SearchAndTranslate") }
             )
         }
         Spacer(modifier = Modifier.height(24.dp))

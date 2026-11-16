@@ -275,6 +275,9 @@
     <string name="about_licenses_subtitle">Third-party components and their licenses</string>
     <string name="about_original_project">Original project</string>
     <string name="about_original_project_subtitle">Based on CircleToSearch by AKS Labs (GPL-3.0)</string>
+    <string name="about_based_on">Based on</string>
+    <string name="about_based_on_subtitle">github.com/fuzzyfly0/SearchAndTranslate</string>
+    <string name="info_based_on_searchandtranslate">Based on Search &amp; Translate</string>
     <string name="wizard_title">Grant permissions to get started</string>
     <string name="wizard_hint">Grant any one to continue</string>
     <string name="wizard_a11y_title">Accessibility</string>

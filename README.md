@@ -57,7 +57,7 @@ Draw a circle around anything on your screen – then **search** it or **transla
 ---
 ## ℹ️ About
 
-**CTS** is a fork of [CircleToSearch](https://github.com/AKS-Labs/CircleToSearch) by [AKSLabs](https://github.com/akslabs), licensed under the [GNU GPL v3](LICENSE). Third-party components are listed in [THIRD_PARTY_LICENSES.md](licenses/THIRD_PARTY_LICENSES.md).
+**CTS** is a fork of [CircleToSearch](https://github.com/AKS-Labs/CircleToSearch) by [AKSLabs](https://github.com/akslabs), based on [Search & Translate](https://github.com/fuzzyfly0/SearchAndTranslate), licensed under the [GNU GPL v3](LICENSE). Third-party components are listed in [THIRD_PARTY_LICENSES.md](licenses/THIRD_PARTY_LICENSES.md).
 
 Google (Google LLC), Bing (Microsoft Corporation) and TinEye (Idée Inc.) are trademarks of their owners and are only named to describe the search services the app can open. This project is not affiliated with or endorsed by AKSLabs, Google, Microsoft or TinEye.
 

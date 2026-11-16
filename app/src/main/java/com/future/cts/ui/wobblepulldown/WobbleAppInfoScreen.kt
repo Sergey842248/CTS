@@ -96,6 +96,7 @@ import kotlinx.coroutines.launch
 
 private const val GITHUB_URL = "https://github.com/Sergey842248/CTS"
 private const val ORIGINAL_URL = "https://github.com/AKS-Labs/CircleToSearch"
+private const val BASED_ON_URL = "https://github.com/fuzzyfly0/SearchAndTranslate"
 private const val LICENSES_URL = "https://github.com/Sergey842248/CTS/blob/main/licenses/THIRD_PARTY_LICENSES.md"
 private const val MAX_PULL_PX = 160f
 private const val PULL_HAPTIC_PX = 120f
@@ -351,6 +352,29 @@ fun WobbleAppInfoScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.info_made_by_akslabs),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { openLink(context, BASED_ON_URL) }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.github),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.info_based_on_searchandtranslate),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
