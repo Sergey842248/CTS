@@ -73,6 +73,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -119,6 +120,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -153,6 +155,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -194,6 +197,7 @@ import androidx.webkit.UserAgentMetadata
 import com.fuzzyfly0.searchandtranslate.data.isDirectUpload
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -602,6 +606,8 @@ fun SearchAndTranslateScreen(
     var showQrSheet by remember { mutableStateOf(false) }
     var qrScanBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var qrInitialResults by remember { mutableStateOf<List<com.fuzzyfly0.searchandtranslate.utils.QrResultWithBounds>>(emptyList()) }
+    // Result the QR chip tapped on, so the sheet opens on that code's page.
+    var qrInitialPage by remember { mutableStateOf(0) }
 
     // The circled area (screen rect + bitmap region) kept while Search, Translate or Lens
     // run on it, so closing them with back brings the circle and its chooser back.
@@ -1971,6 +1977,78 @@ fun SearchAndTranslateScreen(
                 }
             }
 
+            // 3b. QR chips — a tappable pill over every detected code carrying its link/text,
+            // ellipsised when too long. Sits above the circle-drawing detector (a tap opens the
+            // chip instead of starting a circle) but below the header and the bottom bar.
+            if (isUIVisible && !isTranslatorMode && qrInitialResults.isNotEmpty() && canvasSizePx.width > 0) {
+                val shot = screenshot
+                if (shot != null) {
+                    // ContentScale.Fit mapping: bitmap px -> view px (same transform the image uses).
+                    val t = fitMapping(
+                        canvasSizePx.width.toFloat(),
+                        canvasSizePx.height.toFloat(),
+                        shot.width.toFloat(),
+                        shot.height.toFloat(),
+                    )
+                    val chipSizes = remember { mutableStateMapOf<Int, IntSize>() }
+                    qrInitialResults.forEachIndexed { index, qr ->
+                        val b = qr.bounds ?: return@forEachIndexed
+                        // Full label here (the sheet's helper caps at 25 chars without an
+                        // ellipsis); the pill's width limit does the "…" for long links.
+                        val label = when (val r = qr.result) {
+                            is com.fuzzyfly0.searchandtranslate.utils.QrResult.Url -> r.displayUrl
+                            is com.fuzzyfly0.searchandtranslate.utils.QrResult.PlainText -> r.text
+                            else -> qrResultShortLabel(r, context)
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .offset {
+                                    // Measured on the first frame; until then the chip sits on
+                                    // the code centre and slides into place right after.
+                                    val w = chipSizes[index]?.width ?: 0
+                                    val h = chipSizes[index]?.height ?: 0
+                                    val gap = 8.dp.toPx()
+                                    val cx = t.offsetX + b.centerX() * t.scale
+                                    val below = t.offsetY + b.bottom * t.scale + gap
+                                    val above = t.offsetY + b.top * t.scale - gap - h
+                                    val x = (cx - w / 2f).let {
+                                        if (w > 0) it.coerceIn(0f, (canvasSizePx.width - w).toFloat()) else it
+                                    }
+                                    // Under the code, above it when there's no room below.
+                                    val y = if (below + h <= canvasSizePx.height) below else above.coerceAtLeast(0f)
+                                    IntOffset(x.roundToInt(), y.roundToInt())
+                                }
+                                .onSizeChanged { chipSizes[index] = it }
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = androidx.compose.material3.ripple(),
+                                ) {
+                                    qrScanBitmap = shot
+                                    qrInitialPage = index
+                                    showQrSheet = true
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = label,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    // Room for the label; the ellipsis kicks in beyond this.
+                                    modifier = Modifier.widthIn(max = 180.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 4. Header (Top)
             androidx.compose.animation.AnimatedVisibility(
                 visible = isUIVisible && !isTranslatorMode,
@@ -2292,7 +2370,8 @@ fun SearchAndTranslateScreen(
                     context = context,
                     bitmap = qrScanBitmap,
                     onDismiss = { showQrSheet = false },
-                    initialResults = qrInitialResults
+                    initialResults = qrInitialResults,
+                    initialPage = qrInitialPage
                 )
             }
         }
