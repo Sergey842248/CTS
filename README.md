@@ -19,15 +19,15 @@ Draw a circle around anything on your screen – then **search** it or **transla
 
 ### 🔍 Search
 - **Circle to select**: Draw a circle or scribble around anything on the screen – or skip the circle and use the whole screen.
-- **Search or Translate**: After circling, tap *Search* or *Translate* in the bottom bar – or set one of them as the default (Settings › Search).
+- **Search or Translate**: After circling, tap *Search* or *Translate* in the bottom bar – or set one of them as the default (Settings › Search). While a circle is drawn, *Share*, *Search*, *Translate*, *Pin* and *Close* show the corner brackets of the area they act on.
 - **Search method**: Multi-Search (the results sheet) or Google Lens, chosen in Settings › Search. With *Google Lens* the circled area is handed straight to Lens instead of opening the results tabs.
-- **Image search engines**: Google, Bing and TinEye, each in its own results tab. Your cookie-banner choice for Google and Bing is remembered.
-- **Scan QR codes**: The *Scan QR* button decodes the circled area – or the whole screen when nothing is selected – and lists everything it finds, with the action that fits: open or copy a link, copy the Wi-Fi password, call or message a number, search a product barcode, add a contact, open the coordinates, translate a text.
-- **Open or copy a link**: In the search results, the *Link* button opens the page in your browser or copies its URL.
-- **Fullscreen**: selects the whole screen as one area, so Share / Search / Translate / Pin act on it even while a circle is drawn.
-- **Pin**: floats the selection as a sticker over other apps — drag it around, resize it, it follows the device tilt.
+- **Image search engines**: Google, Bing and TinEye, each in its own results tab. Your cookie-banner choice for Google and Bing is remembered, and a sign-in in one of the engines stays logged in. The pages keep their own theme – dark mode is never forced into them.
+- **QR codes**: every code found in the capture gets a small chip under it with its link/content (long ones end in …). Tap it for the actions that fit: open or copy a link, copy the Wi-Fi password, call or message a number, search a product barcode, add a contact, open the coordinates, translate a text.
+- **Open or copy a link**: In the search results, the *Link* button opens the page in your browser or copies its URL. Selecting a bare link in the recognized text (google.com, www.google.com) offers *Open link* next to Copy / Share / Web search.
+- **Pin**: floats the selection as a sticker over other apps — drag it around, pinch it bigger or smaller, tap it for Share / Save / Delete, it follows the device tilt.
 - **Song recognition**: The *Song* button recognizes what is playing. It opens the app you pick in Settings › Search, otherwise Shazam, SoundHound or the Google app's song search.
 - **Share**: Share the circled area or the whole screen, also directly from the search results.
+- **Settings**: there is no settings button in the dock — hold *Close* for three seconds to open Settings (the overlay stays open underneath).
 
 ### 🌐 Translate (offline)
 - **In-place translation**: The circled area – or the whole screen – is translated and drawn over the original text.
