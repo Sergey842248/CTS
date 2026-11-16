@@ -326,9 +326,7 @@
     <string name="launch_a11y_settings_subtitle">Turn the accessibility service on: double-tap the top of the screen to open the app</string>
 
     <!-- Selection action buttons (overlay bottom bar) -->
-    <string name="label_fullscreen">Fullscreen</string>
     <string name="label_pin">Pin</string>
-    <string name="label_scan_qr">Scan QR</string>
     <string name="cd_song_search">Song search</string>
     <string name="toast_song_search_unavailable">No song recognition app found (e.g. Shazam or SoundHound)</string>
 

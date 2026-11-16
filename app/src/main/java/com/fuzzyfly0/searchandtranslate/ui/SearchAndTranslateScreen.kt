@@ -87,7 +87,6 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.automirrored.filled.FormatTextdirectionRToL
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Mic
@@ -2053,16 +2052,57 @@ fun SearchAndTranslateScreen(
                             enabled: Boolean = true,
                             // Framed: the button acts on the circled area, not the whole screen.
                             framed: Boolean = false,
+                            // Held down for 3 s (instead of tapped) — e.g. Close opens Settings.
+                            onHold: (() -> Unit)? = null,
                             onClick: () -> Unit
                         ) {
+                            // Set when the 3 s hold fired, so the release that follows is
+                            // swallowed instead of also triggering the plain click.
+                            var holdFired by remember { mutableStateOf(false) }
+                            // Hold timer runs on the composition scope: a stationary finger
+                            // posts no pointer events, so the gesture loop below alone would
+                            // never notice 3 s passing.
+                            val holdScope = rememberCoroutineScope()
                             Box(
-                                modifier = Modifier.weight(1f).semantics { contentDescription = label },
+                                modifier = Modifier.weight(1f).semantics { contentDescription = label }
+                                    .then(
+                                        if (onHold != null) Modifier.pointerInput(onHold != null) {
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                                holdFired = false
+                                                val downPos = down.position
+                                                val slop = viewConfiguration.touchSlop
+                                                val holdJob = holdScope.launch {
+                                                    delay(3000)
+                                                    holdFired = true
+                                                    onHold()
+                                                }
+                                                try {
+                                                    while (true) {
+                                                        val event = awaitPointerEvent()
+                                                        val pressed = event.changes.firstOrNull { it.pressed } ?: break
+                                                        // Sliding off cancels the hold; the tap logic still applies.
+                                                        if (kotlin.math.abs(pressed.position.x - downPos.x) > slop ||
+                                                            kotlin.math.abs(pressed.position.y - downPos.y) > slop
+                                                        ) break
+                                                    }
+                                                } finally {
+                                                    holdJob.cancel()
+                                                }
+                                            }
+                                        } else Modifier
+                                    ),
                                 contentAlignment = Alignment.TopCenter
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     OverlayRoundButton(
                                         size = buttonSize,
                                         onClick = {
+                                            if (onHold != null && holdFired) {
+                                                // The hold already did its job — ignore this release.
+                                                holdFired = false
+                                                return@OverlayRoundButton
+                                            }
                                             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                                             onClick()
                                         },
@@ -2078,56 +2118,23 @@ fun SearchAndTranslateScreen(
                         val circleRegion = pendingChoiceRegion
                         val circleShown = circleRegion != null && selectionRect != null && selectedBitmap == null
 
-                        // ── One row: Logo (settings), Share, Search, Translate, Close ──
+                        // ── One row: Share, Search, Translate, Close ──
+                        // (Settings is no longer a dock button: hold Close for 3 s.)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.Top
                         ) {
-                            // App logo with a small gear (bottom left): opens the app's settings overview.
-                            // The overlay stays open underneath, so back from settings returns to it.
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(buttonSize)
-                                        // Unbounded ripple instead of a round clip, which cut off the gear.
-                                        .clickable(
-                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                            indication = androidx.compose.material3.ripple(bounded = false, radius = buttonSize / 2),
-                                        ) {
-                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                                            openSettings()
-                                        }
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = com.fuzzyfly0.searchandtranslate.R.drawable.ic_logo),
-                                        contentDescription = stringResource(R.string.settings),
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                    Surface(
-                                        modifier = Modifier.align(Alignment.BottomStart).size(buttonSize * 0.38f),
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                    ) {
-                                        Icon(
-                                            painterResource(id = dev.davidv.translator.R.drawable.settings_filled),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            modifier = Modifier.padding(2.dp)
-                                        )
-                                    }
-                                }
-                            }
-
                             // Share: the circled area or the whole screen.
-                            BottomBarButton(stringResource(R.string.label_share), { Icon(Icons.Default.Share, null) }) {
+                            BottomBarButton(stringResource(R.string.label_share), { Icon(Icons.Default.Share, null) }, framed = circleShown) {
                                 shareSelection()
                             }
 
-                            // Fullscreen
-                            // With a circle on screen it searches the circle.
+                            // Search: with a circle on screen it searches the circle, else the
+                            // whole capture (which is also what the removed Fullscreen button did).
                             BottomBarButton(
                                 stringResource(R.string.label_search),
                                 { Icon(com.fuzzyfly0.searchandtranslate.ui.AppIcons.Search, null) },
+                                framed = circleShown,
                             ) {
                                 val shot = screenshot
                                 if (circleShown && circleRegion != null && shot != null) {
@@ -2166,6 +2173,7 @@ fun SearchAndTranslateScreen(
                             BottomBarButton(
                                 stringResource(R.string.label_translate),
                                 { Icon(painterResource(id = com.fuzzyfly0.searchandtranslate.R.drawable.ic_translate_a), null) },
+                                framed = circleShown,
                             ) {
                                 val shot = screenshot
                                 if (circleShown && circleRegion != null && shot != null) {
@@ -2181,8 +2189,14 @@ fun SearchAndTranslateScreen(
                             }
 
                             // Close: with a circle it is framed and only drops the circle
-                            // (same as Back); otherwise it closes the overlay.
-                            BottomBarButton(stringResource(R.string.cd_close), { Icon(Icons.Default.Close, null) }, framed = circleShown) {
+                            // (same as Back); otherwise it closes the overlay. Holding it for
+                            // 3 s opens Settings (the old dock logo+gear button is gone).
+                            BottomBarButton(
+                                stringResource(R.string.cd_close),
+                                { Icon(Icons.Default.Close, null) },
+                                framed = circleShown,
+                                onHold = { openSettings() },
+                            ) {
                                 if (circleShown) {
                                     selectionRect = null
                                     selectedBitmap = null
@@ -2196,37 +2210,17 @@ fun SearchAndTranslateScreen(
                             }
                         }
 
-                        // ── Second row: Fullscreen, Pin, Scan QR, Song ──
+                        // ── Second row: Pin, Song ── (Fullscreen and Scan QR were removed:
+                        // whole-screen search is the Search button without a circle, and QR
+                        // codes get their own tappable chip over the code.)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.Top
                         ) {
-                            // Fullscreen: select the whole capture as one framed area, so
-                            // Share / Search / Translate / Pin can act on the full screen even
-                            // while a circle is drawn (a circle only replaces the Search and
-                            // Translate buttons' target, it never forces it).
-                            BottomBarButton(stringResource(R.string.label_fullscreen), { Icon(Icons.Default.Fullscreen, null) }) {
-                                val shot = screenshot
-                                if (shot == null) {
-                                    showMissingCaptureSettings()
-                                    return@BottomBarButton
-                                }
-                                if (circleShown && circleRegion != null) saveCircle(selectionRect, circleRegion)
-                                pendingChoiceRegion = null
-                                currentPathPoints.clear()
-                                // Full-image selection in screen space (view size, not bitmap size).
-                                val viewW = if (canvasSizePx.width > 0) canvasSizePx.width else shot.width
-                                val viewH = if (canvasSizePx.height > 0) canvasSizePx.height else shot.height
-                                // Mark the area as searched before it appears (see the Search button).
-                                selectedBitmap = shot
-                                isSearching = true
-                                selectionRect = Rect(0, 0, viewW, viewH)
-                                scope.launch {
-                                    selectionAnim.snapTo(0f)
-                                    selectionAnim.animateTo(1f, tween(600))
-                                }
-                            }
-
+                            // Two centered cells of the same grid width as row 1, so the
+                            // shorter row doesn't stretch its buttons apart.
+                            Row(modifier = Modifier.width(cellWidth * 2)) {
                             // Pin: float the selection as a sticker over other apps. Framed while
                             // only a circle is drawn — then just the circle is pinned; with no
                             // selection at all the whole capture is.
@@ -2253,22 +2247,11 @@ fun SearchAndTranslateScreen(
                                 }
                             }
 
-                            // Scan QR: decode the circled area (or the whole capture) and list
-                            // everything found — open / copy a link, call, Wi-Fi details, …
-                            BottomBarButton(stringResource(R.string.label_scan_qr), { Icon(Icons.Default.QrCode, null) }) {
-                                val shot = screenshot
-                                if (shot == null) {
-                                    showMissingCaptureSettings()
-                                    return@BottomBarButton
-                                }
-                                qrScanBitmap = selectionBitmapOrNull() ?: shot
-                                showQrSheet = true
-                            }
-
                             // Song: recognize what is playing (the app picked in Settings › Search,
                             // else Shazam / SoundHound / Google — see launchSongSearch).
                             BottomBarButton(stringResource(R.string.cd_song_search), { Icon(Icons.Default.MusicNote, null) }) {
                                 launchSongSearch()
+                            }
                             }
                         }
                     }
