@@ -1101,14 +1101,27 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
                     isScaling = true
                     val scaleFactor = detector.scaleFactor
 
-                    val newContentW = (contentW * scaleFactor).toInt()
-                    val newContentH = (contentH * scaleFactor).toInt()
+                    // Constraints: 5% to 95% of the screen, clamped per axis —
+                    // width against screenWidth, height against screenHeight — so a
+                    // tall sticker can shrink/grow instead of being rejected because
+                    // its *other* dimension falls outside a width-based window.
+                    if (contentW <= 0 || contentH <= 0) return true
+                    val lo = maxOf(
+                        (screenWidth * 0.05f) / contentW,
+                        (screenHeight * 0.05f) / contentH
+                    )
+                    val hi = minOf(
+                        (screenWidth * 0.95f) / contentW,
+                        (screenHeight * 0.95f) / contentH
+                    )
+                    if (lo > hi) return true
+                    val scale = scaleFactor.coerceIn(lo, hi)
+                    if (scale <= 0f) return true
 
-                    // Constraints: 15% to 95% of screen
-                    val minDim = (screenWidth * 0.15f).toInt()
-                    val maxDim = (screenWidth * 0.95f).toInt()
+                    val newContentW = (contentW * scale).toInt()
+                    val newContentH = (contentH * scale).toInt()
 
-                    if (newContentW in minDim..maxDim && newContentH in minDim..maxDim) {
+                    if (newContentW > 0 && newContentH > 0) {
                         // Keep the point under the pinch focus fixed on screen
                         val focusX = detector.focusX
                         val focusY = detector.focusY
@@ -1140,23 +1153,29 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
                 }
             })
 
-            // --- Phase 31: GestureDetector for reliable long-press ---
+            // --- Phase 31: GestureDetector — a plain tap toggles the action menu ---
             val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-                override fun onLongPress(e: MotionEvent) {
-                    if (!isDragging) {
-                        // Show actions
-                        if (currentMenu == null) {
-                            showPinnedActions(pinnedView, touchView, bitmap, params, params.y, contentH) { menu ->
-                                currentMenu = menu
-                            }
-                        }
+                override fun onSingleTapUp(e: MotionEvent): Boolean {
+                    // A pinch (second finger seen) or a drag in progress must not
+                    // pop the menu; the guards also cover the trailing UP event.
+                    if (isDragging || isScaling) return false
+                    val open = currentMenu
+                    if (open != null) {
+                        // Second tap closes it again
+                        try { windowManager?.removeView(open) } catch (e: Exception) {}
+                        currentMenu = null
+                        return true
                     }
+                    showPinnedActions(pinnedView, touchView, bitmap, params, params.y, contentH) { menu ->
+                        currentMenu = menu
+                    }
+                    return true
                 }
             })
 
             // Dead zone: the sticker only moves/tilts once the finger exceeds the
-            // system touch slop, so a trembling hold still reaches the long-press
-            // menu instead of creeping or entering drag mode.
+            // system touch slop, so a trembling hold still reaches the tap menu
+            // instead of creeping or entering drag mode.
             val dragSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop
 
             @SuppressLint("ClickableViewAccessibility")
@@ -1172,8 +1191,8 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
                         targetTilt = 0f
                         // A bare touch must be completely inert: no window resize,
                         // no scale pop, no position change. Every reaction starts
-                        // only after the drag dead zone is crossed; the long-press
-                        // menu comes from the gesture detector.
+                        // only after the drag dead zone is crossed; the tap menu
+                        // comes from the gesture detector.
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
