@@ -643,6 +643,59 @@ private fun SearchSettingsScreen(
                 }
             }
         }
+
+        // Song recognition: which app the overlay's Song button opens. The picker is
+        // the same searchable installed-app list the overlay gestures use.
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsSectionHeader(title = stringResource(R.string.settings_song_app_title))
+        Text(
+            text = stringResource(R.string.settings_song_app_subtitle),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        val songContext = LocalContext.current
+        var songApp by remember { mutableStateOf(state.uiPreferences.getSongSearchApp()) }
+        var showSongPicker by remember { mutableStateOf(false) }
+        val songAppLabel = remember(songApp) {
+            if (songApp.isEmpty()) songContext.getString(R.string.settings_song_app_none)
+            else runCatching {
+                songContext.packageManager.getApplicationInfo(songApp, 0)
+                    .loadLabel(songContext.packageManager).toString()
+            }.getOrDefault(songContext.getString(R.string.settings_song_app_none))
+        }
+        SettingsGroup {
+            SettingsLinkRow(
+                icon = Icons.Default.MusicNote,
+                title = songAppLabel,
+                subtitle = stringResource(R.string.title_select_app),
+                onClick = { showSongPicker = true }
+            )
+            // Only offer the way back to automatic once a custom app is picked.
+            if (songApp.isNotEmpty()) {
+                SettingsGroupDivider()
+                SettingsLinkRow(
+                    icon = Icons.Default.Refresh,
+                    title = stringResource(R.string.reset),
+                    subtitle = stringResource(R.string.settings_song_app_none),
+                    onClick = {
+                        songApp = ""
+                        state.uiPreferences.setSongSearchApp("")
+                    }
+                )
+            }
+        }
+        if (showSongPicker) {
+            AppPickerDialog(
+                onDismiss = { showSongPicker = false },
+                onAppSelected = { pkg ->
+                    songApp = pkg
+                    state.uiPreferences.setSongSearchApp(pkg)
+                    showSongPicker = false
+                }
+            )
+        }
+
         // Order of the search engine tabs (Multi-Search)
         val engineOrder = remember {
             val preferred = state.uiPreferences.getSearchEngineOrder()?.split(",") ?: emptyList()

@@ -783,6 +783,36 @@ fun SearchAndTranslateScreen(
         onClose()
     }
 
+    /**
+     * Song recognition: opens the app picked in Settings › Search, else the first of
+     * Shazam, SoundHound or the Google app's song search that is installed. The overlay
+     * closes so the recognizer runs over a normal screen.
+     */
+    fun launchSongSearch() {
+        val pm = context.packageManager
+        val preferred = uiPreferences.getSongSearchApp()
+        val candidates: List<android.content.Intent?> = listOf(
+            preferred.takeIf { it.isNotEmpty() }?.let { pm.getLaunchIntentForPackage(it) },
+            pm.getLaunchIntentForPackage("com.shazam.android"),
+            pm.getLaunchIntentForPackage("com.melodis.midomiMusicIdentifier.freemium"),
+            pm.getLaunchIntentForPackage("com.melodis.midomiMusicIdentifier"),
+            android.content.Intent("com.google.android.googlequicksearchbox.MUSIC_SEARCH")
+                .takeIf { it.resolveActivity(pm) != null },
+        )
+        val intent = candidates.firstOrNull { it != null }
+        if (intent == null) {
+            android.widget.Toast.makeText(context, context.getString(R.string.toast_song_search_unavailable), android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            context.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            onClose()
+        } catch (e: Exception) {
+            android.util.Log.e("SearchAndTranslate", "Song search launch failed", e)
+            android.widget.Toast.makeText(context, context.getString(R.string.toast_song_search_unavailable), android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     /** Translates the whole [bmp] with the translator overlay; close/back returns here. */
     fun startFullTranslate(bmp: Bitmap) {
         translatedRegion = null
@@ -2139,7 +2169,7 @@ fun SearchAndTranslateScreen(
                             }
                         }
 
-                        // ── Second row: Fullscreen, Pin, Scan QR ──
+                        // ── Second row: Fullscreen, Pin, Scan QR, Song ──
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.Top
@@ -2208,6 +2238,11 @@ fun SearchAndTranslateScreen(
                                 showQrSheet = true
                             }
 
+                            // Song: recognize what is playing (the app picked in Settings › Search,
+                            // else Shazam / SoundHound / Google — see launchSongSearch).
+                            BottomBarButton(stringResource(R.string.cd_song_search), { Icon(Icons.Default.MusicNote, null) }) {
+                                launchSongSearch()
+                            }
                         }
                     }
                     }

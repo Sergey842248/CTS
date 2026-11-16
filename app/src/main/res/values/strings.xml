@@ -320,6 +320,8 @@
     <string name="label_fullscreen">Fullscreen</string>
     <string name="label_pin">Pin</string>
     <string name="label_scan_qr">Scan QR</string>
+    <string name="cd_song_search">Song search</string>
+    <string name="toast_song_search_unavailable">No song recognition app found (e.g. Shazam or SoundHound)</string>
 
     <!-- Links: open / copy from the results sheet -->
     <string name="menu_open_in_browser">Open in browser</string>
@@ -359,4 +361,8 @@
     <string name="qr_label_vcard_name">Name</string>
     <string name="qr_label_geo">Coordinates</string>
 
+    <!-- Song recognition app picker (Settings › Search) -->
+    <string name="settings_song_app_title">Song recognition app</string>
+    <string name="settings_song_app_subtitle">Which app the Song button in the overlay opens</string>
+    <string name="settings_song_app_none">Automatic (Shazam, SoundHound or Google)</string>
 </resources>

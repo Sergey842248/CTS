@@ -30,6 +30,7 @@ class UIPreferences(context: Context) {
         private const val KEY_DISABLED_SEARCH_ENGINES = "disabled_search_engines"
         private const val KEY_LASSO_TRANSLATE = "lasso_translate"
         private const val KEY_CIRCLE_ACTION = "circle_action"
+        private const val KEY_SONG_SEARCH_APP = "song_search_app"
 
         /** What happens after an area is circled. */
         const val CIRCLE_ACTION_ASK = "ask"
@@ -70,5 +71,16 @@ class UIPreferences(context: Context) {
 
     fun setCircleAction(action: String) {
         prefs.edit().putString(KEY_CIRCLE_ACTION, action).apply()
+    }
+
+    /**
+     * Package name of the app the overlay's Song button opens, or "" when the user
+     * has not picked one (the button then falls back to Shazam / SoundHound / Google).
+     * Picked in Settings › Search with the app picker.
+     */
+    fun getSongSearchApp(): String = prefs.getString(KEY_SONG_SEARCH_APP, "") ?: ""
+
+    fun setSongSearchApp(packageName: String) {
+        prefs.edit().putString(KEY_SONG_SEARCH_APP, packageName).apply()
     }
 }
