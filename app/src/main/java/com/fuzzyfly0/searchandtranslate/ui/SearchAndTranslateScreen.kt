@@ -483,10 +483,6 @@ fun SearchAndTranslateScreen(
     var pageBackgroundColor by remember { mutableStateOf(defaultPageBackground) }
     var refreshingEngine by remember { mutableStateOf<SearchEngine?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    
-    // Result pages follow the system dark/light setting.
-    val isDarkMode = androidx.compose.foundation.isSystemInDarkTheme()
-    
 
     // Track initialized engines for Smart Loading
     val initializedEngines = remember { mutableStateListOf<SearchEngine>() }
@@ -534,48 +530,7 @@ fun SearchAndTranslateScreen(
         val re = refreshingEngine
         if (view != null && re != null && view === webViews[re]) refreshingEngine = null
     }
-    
-    // Update WebViews when dark mode changes
-    LaunchedEffect(isDarkMode) {
-        webViews.values.forEach { wv ->
-            try {
-                // Update WebViewClient for dark mode
-                if (isDarkMode) {
-                    wv.webViewClient = object : android.webkit.WebViewClient() {
-                        override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
-                            super.onPageFinished(view, url)
-                            samplePageBackgroundColor(view)
-                            clearRefreshIfDone(view)
-                            val darkModeCSS = """
-                                (function() {
-                                    var style = document.createElement('style');
-                                    style.innerHTML = `
-                                        html { filter: invert(1) hue-rotate(180deg) !important; background: #000 !important; }
-                                        img, video, [style*="background-image"] { filter: invert(1) hue-rotate(180deg) !important; }
-                                    `;
-                                    document.head.appendChild(style);
-                                })()
-                            """.trimIndent()
-                            view?.evaluateJavascript(darkModeCSS, null)
-                        }
-                    }
-                } else {
-                    wv.webViewClient = object : android.webkit.WebViewClient() {
-                        override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
-                            super.onPageFinished(view, url)
-                            samplePageBackgroundColor(view)
-                            clearRefreshIfDone(view)
-                        }
-                    }
-                }
-                wv.reload()
-                android.util.Log.d("SearchAndTranslate", "Dark mode changed to: $isDarkMode - Reloaded WebViews")
-            } catch (e: Exception) {
-                android.util.Log.e("SearchAndTranslate", "Error updating dark mode", e)
-            }
-        }
-    }
-    
+
     // Bottom Sheet State
     val scaffoldState = androidx.compose.material3.rememberBottomSheetScaffoldState(
         bottomSheetState = androidx.compose.material3.rememberStandardBottomSheetState(
@@ -1039,15 +994,12 @@ fun SearchAndTranslateScreen(
                 } else {
                     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
                 }
-
-                // Dark Mode - Use CSS injection for universal compatibility
-                // Algorithmic darkening alone doesn't work on many websites
-                android.util.Log.d("SearchAndTranslate", "Dark mode enabled: $isDarkMode")
             }
 
-            // Dark mode: let pages without a dark theme be darkened as well.
+            // Never force a dark rendering on the search engines: inverting a dark page for
+            // dark mode turns it light again, and the engines ship their own theme anyway.
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.ALGORITHMIC_DARKENING)) {
-                androidx.webkit.WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                androidx.webkit.WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, false)
             }
 
             // UI Tweaks
@@ -1219,21 +1171,6 @@ fun SearchAndTranslateScreen(
                                 android.util.Log.e("LensDiag", "snapshot failed", e)
                             }
                         }, 4000)
-                    }
-                    // Inject dark mode CSS if enabled
-                    if (isDarkMode) {
-                        val darkModeCSS = """
-                            (function() {
-                                var style = document.createElement('style');
-                                style.innerHTML = `
-                                    html { filter: invert(1) hue-rotate(180deg) !important; background: #000 !important; }
-                                    img, video, [style*="background-image"] { filter: invert(1) hue-rotate(180deg) !important; }
-                                `;
-                                document.head.appendChild(style);
-                            })()
-                        """.trimIndent()
-                        view?.evaluateJavascript(darkModeCSS, null)
-                        android.util.Log.d("SearchAndTranslate", "Dark mode CSS injected for: $url")
                     }
                 }
             }
