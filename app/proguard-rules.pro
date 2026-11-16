@@ -13,12 +13,12 @@
 
 # Keep the data classes for GSON but allow obfuscation of names
 # Since we added @SerializedName, we don't need to keep the field names.
--keepclassmembers class com.fuzzyfly0.searchandtranslate.data.** {
+-keepclassmembers class com.future.cts.data.** {
     <fields>;
 }
 
 # Keep Enums for GSON serialization
--keepclassmembers enum com.fuzzyfly0.searchandtranslate.data.** {
+-keepclassmembers enum com.future.cts.data.** {
     <fields>;
     public static **[] values();
     public static ** valueOf(java.lang.String);

@@ -1,0 +1,1439 @@
+/*
+ * Copyright (C) 2025 AKS-Labs
+ */
+
+package com.future.cts.ui
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.ContextCompat
+import android.os.Build
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
+import com.future.cts.R
+import com.future.cts.SearchAndTranslateAccessibilityService
+import com.future.cts.ui.components.UnifiedSearchMethodSelector
+import com.future.cts.data.*
+import com.future.cts.isAccessibilityServiceEnabled
+import com.future.cts.data.SearchEngine
+import com.future.cts.utils.UIPreferences
+import androidx.core.app.ActivityOptionsCompat
+
+private const val NAV_TRANSITION_MS = 320
+private val NavEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+private sealed class SettingsPage {
+    object Root : SettingsPage()
+    object Triggers : SettingsPage()
+    object Zones : SettingsPage()
+    object Search : SettingsPage()
+    object About : SettingsPage()
+}
+
+private fun SettingsPage.order(): Int = when (this) {
+    SettingsPage.Root -> 0
+    SettingsPage.Triggers -> 1
+    SettingsPage.Zones -> 2
+    SettingsPage.Search -> 3
+    SettingsPage.About -> 4
+}
+
+private fun settingsPageFromName(name: String?): SettingsPage? = when (name) {
+    "triggers" -> SettingsPage.Triggers
+    "zones" -> SettingsPage.Zones
+    "search" -> SettingsPage.Search
+    "about" -> SettingsPage.About
+    else -> null
+}
+
+@Stable
+private class OverlaySettingsState(context: Context) {
+    private val configManager = OverlayConfigurationManager(context)
+    private val appPrefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+
+    val uiPreferences = UIPreferences(context)
+    val isAccessibilityOn = isAccessibilityServiceEnabled(context)
+
+    private val _config = mutableStateOf(configManager.getConfig())
+    val config: OverlayConfig get() = _config.value
+    fun updateConfig(newConfig: OverlayConfig) {
+        _config.value = newConfig
+        configManager.saveConfig(newConfig)
+        // Direct refresh: don't rely solely on the SharedPreferences listener,
+        // some devices delay it — poke the running service so changes apply live.
+        SearchAndTranslateAccessibilityService.instance?.refreshOverlays()
+    }
+}
+
+@Composable
+fun OverlaySettingsScreen(
+    onBack: () -> Unit,
+    initialPage: String? = null
+) {
+    val context = LocalContext.current
+    val state = remember { OverlaySettingsState(context) }
+    val backStack = remember {
+        val startPage = settingsPageFromName(initialPage)
+        if (startPage != null) {
+            // Deep link (e.g. "Custom overlay" row): start directly on the target
+            // page — back from it returns home, not to the settings root.
+            mutableStateListOf<SettingsPage>(startPage)
+        } else {
+            mutableStateListOf<SettingsPage>(SettingsPage.Root)
+        }
+    }
+    val pop: () -> Unit = {
+        if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) else onBack()
+    }
+
+    androidx.activity.compose.BackHandler {
+        if (backStack.size > 1) pop() else onBack()
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        AnimatedContent(
+            targetState = backStack.last(),
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                val forward = targetState.order() > initialState.order()
+                if (forward) {
+                    (slideInHorizontally(tween(NAV_TRANSITION_MS, easing = NavEasing)) { it } +
+                            fadeIn(tween(240)))
+                        .togetherWith(
+                            slideOutHorizontally(tween(NAV_TRANSITION_MS, easing = NavEasing)) { -it } +
+                                    fadeOut(tween(200))
+                        )
+                } else {
+                    (slideInHorizontally(tween(NAV_TRANSITION_MS, easing = NavEasing)) { -it } +
+                            fadeIn(tween(240)))
+                        .togetherWith(
+                            slideOutHorizontally(tween(NAV_TRANSITION_MS, easing = NavEasing)) { it } +
+                                    fadeOut(tween(200))
+                        )
+                }
+            },
+            label = "settingsNav"
+        ) { page ->
+            when (page) {
+                SettingsPage.Root -> SettingsRootScreen(
+                    onBack = onBack,
+                    onNavigate = { backStack.add(it) }
+                )
+                SettingsPage.Triggers -> TriggersSettingsScreen(state = state, onBack = pop)
+                SettingsPage.Zones -> ZonesSettingsScreen(state = state, onBack = pop)
+                SettingsPage.Search -> SearchSettingsScreen(state = state, onBack = pop)
+                SettingsPage.About -> AboutSettingsScreen(onBack = pop)
+            }
+        }
+    }
+}
+
+/**
+ * Page frame shared by every settings sub-page; same look as the Launch methods page:
+ * surfaceContainer background, a plain back arrow with the bold title next to it,
+ * then the scrolling content with 16dp side margins.
+ */
+@Composable
+private fun SettingsDetailScaffold(
+    title: String,
+    onBack: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+            .navigationBarsPadding()
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.cd_back)
+                )
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            actions()
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        content()
+    }
+}
+
+@Composable
+private fun SettingsRootScreen(
+    onBack: () -> Unit,
+    onNavigate: (SettingsPage) -> Unit
+) {
+    val context = LocalContext.current
+    SettingsDetailScaffold(
+        title = stringResource(R.string.title_settings),
+        onBack = onBack
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+        SettingsGroup {
+            SettingsCategoryRow(
+                icon = Icons.Default.Info,
+                title = stringResource(R.string.settings_cat_about),
+                subtitle = stringResource(R.string.settings_cat_about_subtitle),
+                onClick = { onNavigate(SettingsPage.About) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun TriggersSettingsScreen(
+    state: OverlaySettingsState,
+    onBack: () -> Unit
+) {
+    val config = state.config
+    SettingsDetailScaffold(
+        title = stringResource(R.string.triggers_card_title),
+        onBack = onBack
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.section_launch_methods))
+        SettingsGroup {
+            SettingsToggleItem(
+                title = stringResource(R.string.trigger_statusbar_title),
+                subtitle = stringResource(R.string.trigger_statusbar_subtitle),
+                icon = Icons.Default.Layers,
+                checked = config.isEnabled,
+                onCheckedChange = { state.updateConfig(config.copy(isEnabled = it)) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun ZonesSettingsScreen(
+    state: OverlaySettingsState,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val config = state.config
+    val overlayPalette = rememberOverlayPalette(context)
+
+    // Overlay strips can only render while the accessibility service is running.
+    // Re-check on resume so enabling the service elsewhere updates this screen.
+    var a11yOn by remember { mutableStateOf(isAccessibilityServiceEnabled(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                a11yOn = isAccessibilityServiceEnabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Clear the editing preview when leaving the screen (deep-link back goes
+    // straight home, so no later screen reset can happen).
+    DisposableEffect(Unit) {
+        onDispose {
+            val cfg = state.config
+            if (cfg.previewVisible || cfg.activeSegmentIndex != -1) {
+                state.updateConfig(cfg.copy(previewVisible = false, activeSegmentIndex = -1))
+            }
+        }
+    }
+
+    SettingsDetailScaffold(
+        title = stringResource(R.string.settings_cat_zones),
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { state.updateConfig(OverlayConfig()) }) {
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_reset))
+            }
+        }
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (!a11yOn) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.overlay_a11y_off_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = stringResource(R.string.overlay_a11y_off_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    }) {
+                        Text(stringResource(R.string.overlay_a11y_off_enable))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SettingsSectionHeader(title = stringResource(R.string.section_overlays))
+            TextButton(onClick = {
+                val currentSegments = config.segments.toMutableList()
+                currentSegments.add(OverlaySegment(xOffset = 300))
+                state.updateConfig(config.copy(segments = currentSegments))
+            }) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.btn_add_overlay))
+            }
+        }
+
+        if (config.segments.isEmpty()) {
+            Text(
+                text = stringResource(R.string.label_no_overlays),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        config.segments.forEachIndexed { index, segment ->
+            SegmentEditorItem(
+                index = index,
+                segment = segment,
+                overlayPalette = overlayPalette,
+                isExpanded = config.activeSegmentIndex == index,
+                onExpandToggle = {
+                    val nextIndex = if (config.activeSegmentIndex == index) -1 else index
+                    // While a segment editor is open, force the real overlay strips
+                    // visible so position/size changes can be seen live.
+                    state.updateConfig(config.copy(activeSegmentIndex = nextIndex))
+                },
+                onUpdate = { updatedSegment ->
+                    val newSegments = config.segments.toMutableList()
+                    newSegments[index] = updatedSegment
+                    state.updateConfig(config.copy(segments = newSegments))
+                },
+                onDelete = {
+                    val newSegments = config.segments.toMutableList()
+                    newSegments.removeAt(index)
+                    val nextActiveIndex = if (config.activeSegmentIndex == index) -1
+                    else if (config.activeSegmentIndex > index) config.activeSegmentIndex - 1
+                    else config.activeSegmentIndex
+                    state.updateConfig(config.copy(segments = newSegments, activeSegmentIndex = nextActiveIndex))
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.section_behavior))
+        SettingsGroup {
+            SettingsToggleItem(
+                title = stringResource(R.string.overlay_setting_landscape_title),
+                subtitle = stringResource(R.string.overlay_setting_landscape_subtitle),
+                icon = Icons.Default.ScreenRotation,
+                checked = config.isEnabledInLandscape,
+                onCheckedChange = { state.updateConfig(config.copy(isEnabledInLandscape = it)) }
+            )
+            SettingsGroupDivider()
+            SettingsToggleItem(
+                title = stringResource(R.string.overlay_setting_show_title),
+                subtitle = stringResource(R.string.overlay_setting_show_subtitle),
+                icon = Icons.Default.Visibility,
+                checked = config.isVisible,
+                onCheckedChange = { state.updateConfig(config.copy(isVisible = it)) }
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+/**
+ * "Custom overlay" as an expandable block for the Launch methods page, like the
+ * status-bar and screen-edge sections: header row with a chevron, the overlay
+ * strips editor and behaviour toggles in the dropdown.
+ */
+@Composable
+internal fun CustomOverlaySection(
+    a11yGranted: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val state = remember { OverlaySettingsState(context) }
+    val config = state.config
+    val overlayPalette = rememberOverlayPalette(context)
+    val expandProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (expanded) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 240),
+        label = "customOverlayExpand",
+    )
+
+    // Expanding shows the overlay strips as a live preview; collapsing (or leaving
+    // the page) hides them again.
+    LaunchedEffect(expanded) {
+        val cfg = state.config
+        if (expanded && !cfg.previewVisible) {
+            state.updateConfig(cfg.copy(previewVisible = true))
+        } else if (!expanded && (cfg.previewVisible || cfg.activeSegmentIndex != -1)) {
+            state.updateConfig(cfg.copy(previewVisible = false, activeSegmentIndex = -1))
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            val cfg = state.config
+            if (cfg.previewVisible || cfg.activeSegmentIndex != -1) {
+                state.updateConfig(cfg.copy(previewVisible = false, activeSegmentIndex = -1))
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        val rowAlpha = if (a11yGranted) 1f else 0.38f
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = a11yGranted) { onExpandedChange(!expanded) }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(24.dp)
+                    .graphicsLayer {
+                        alpha = rowAlpha
+                        rotationZ = expandProgress * 180f
+                    },
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_cat_zones),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = rowAlpha),
+                )
+                Text(
+                    text = stringResource(R.string.settings_cat_zones_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = rowAlpha),
+                )
+            }
+        }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded && a11yGranted,
+            enter = androidx.compose.animation.expandVertically(androidx.compose.animation.core.tween(240)) +
+                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(240)),
+            exit = androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(200)) +
+                androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)),
+        ) {
+            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SettingsSectionHeader(title = stringResource(R.string.section_overlays))
+                    TextButton(onClick = {
+                        val currentSegments = config.segments.toMutableList()
+                        currentSegments.add(OverlaySegment(xOffset = 300))
+                        state.updateConfig(config.copy(segments = currentSegments))
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.btn_add_overlay))
+                    }
+                }
+
+                if (config.segments.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.label_no_overlays),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                config.segments.forEachIndexed { index, segment ->
+                    SegmentEditorItem(
+                        index = index,
+                        segment = segment,
+                        overlayPalette = overlayPalette,
+                        isExpanded = config.activeSegmentIndex == index,
+                        onExpandToggle = {
+                            val nextIndex = if (config.activeSegmentIndex == index) -1 else index
+                            // While a segment editor is open, force the real overlay strips
+                            // visible so position/size changes can be seen live.
+                            state.updateConfig(config.copy(activeSegmentIndex = nextIndex))
+                        },
+                        onUpdate = { updatedSegment ->
+                            val newSegments = config.segments.toMutableList()
+                            newSegments[index] = updatedSegment
+                            state.updateConfig(config.copy(segments = newSegments))
+                        },
+                        onDelete = {
+                            val newSegments = config.segments.toMutableList()
+                            newSegments.removeAt(index)
+                            val nextActiveIndex = if (config.activeSegmentIndex == index) -1
+                            else if (config.activeSegmentIndex > index) config.activeSegmentIndex - 1
+                            else config.activeSegmentIndex
+                            state.updateConfig(config.copy(segments = newSegments, activeSegmentIndex = nextActiveIndex))
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                SettingsSectionHeader(title = stringResource(R.string.section_behavior))
+                SettingsGroup {
+                    SettingsToggleItem(
+                        title = stringResource(R.string.overlay_setting_landscape_title),
+                        subtitle = stringResource(R.string.overlay_setting_landscape_subtitle),
+                        icon = Icons.Default.ScreenRotation,
+                        checked = config.isEnabledInLandscape,
+                        onCheckedChange = { state.updateConfig(config.copy(isEnabledInLandscape = it)) }
+                    )
+                    SettingsGroupDivider()
+                    SettingsToggleItem(
+                        title = stringResource(R.string.overlay_setting_show_title),
+                        subtitle = stringResource(R.string.overlay_setting_show_subtitle),
+                        icon = Icons.Default.Visibility,
+                        checked = config.isVisible,
+                        onCheckedChange = { state.updateConfig(config.copy(isVisible = it)) }
+                    )
+                }
+                com.future.cts.ui.wobblepulldown.OverlayResetRow(
+                    onReset = { state.updateConfig(OverlayConfig(previewVisible = config.previewVisible)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchSettingsScreen(
+    state: OverlaySettingsState,
+    onBack: () -> Unit
+) {
+    SettingsDetailScaffold(
+        title = stringResource(R.string.settings_cat_search),
+        onBack = onBack
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Search method: hand the selection straight to Google Lens, or open the
+        // multi-engine results sheet (Google / Bing / TinEye).
+        SettingsGroup {
+            Column(modifier = Modifier.padding(16.dp)) {
+                UnifiedSearchMethodSelector(uiPreferences = state.uiPreferences)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        var circleAction by remember { mutableStateOf(state.uiPreferences.getCircleAction()) }
+        SettingsGroup {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_translate_a),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = stringResource(R.string.setting_circle_action_title),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                listOf(
+                    UIPreferences.CIRCLE_ACTION_ASK to R.string.setting_circle_action_ask,
+                    UIPreferences.CIRCLE_ACTION_TRANSLATE to R.string.setting_circle_action_translate,
+                    UIPreferences.CIRCLE_ACTION_SEARCH to R.string.setting_circle_action_search,
+                ).forEach { (value, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                circleAction = value
+                                state.uiPreferences.setCircleAction(value)
+                            }
+                            .padding(start = 56.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = circleAction == value,
+                            onClick = {
+                                circleAction = value
+                                state.uiPreferences.setCircleAction(value)
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(label),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
+
+        // Song recognition: which app the overlay's Song button opens. The picker is
+        // the same searchable installed-app list the overlay gestures use.
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsSectionHeader(title = stringResource(R.string.settings_song_app_title))
+        Text(
+            text = stringResource(R.string.settings_song_app_subtitle),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        val songContext = LocalContext.current
+        var songApp by remember { mutableStateOf(state.uiPreferences.getSongSearchApp()) }
+        var showSongPicker by remember { mutableStateOf(false) }
+        val songAppLabel = remember(songApp) {
+            if (songApp.isEmpty()) songContext.getString(R.string.settings_song_app_none)
+            else runCatching {
+                songContext.packageManager.getApplicationInfo(songApp, 0)
+                    .loadLabel(songContext.packageManager).toString()
+            }.getOrDefault(songContext.getString(R.string.settings_song_app_none))
+        }
+        SettingsGroup {
+            SettingsLinkRow(
+                icon = Icons.Default.MusicNote,
+                title = songAppLabel,
+                subtitle = stringResource(R.string.title_select_app),
+                onClick = { showSongPicker = true }
+            )
+            // Only offer the way back to automatic once a custom app is picked.
+            if (songApp.isNotEmpty()) {
+                SettingsGroupDivider()
+                SettingsLinkRow(
+                    icon = Icons.Default.Refresh,
+                    title = stringResource(R.string.reset),
+                    subtitle = stringResource(R.string.settings_song_app_none),
+                    onClick = {
+                        songApp = ""
+                        state.uiPreferences.setSongSearchApp("")
+                    }
+                )
+            }
+        }
+        if (showSongPicker) {
+            AppPickerDialog(
+                onDismiss = { showSongPicker = false },
+                onAppSelected = { pkg ->
+                    songApp = pkg
+                    state.uiPreferences.setSongSearchApp(pkg)
+                    showSongPicker = false
+                }
+            )
+        }
+
+        // Order of the search engine tabs (Multi-Search)
+        val engineOrder = remember {
+            val preferred = state.uiPreferences.getSearchEngineOrder()?.split(",") ?: emptyList()
+            val all = SearchEngine.values()
+            val ordered = preferred.mapNotNull { name -> all.find { it.name == name } }.toMutableList()
+            all.forEach { if (it !in ordered) ordered.add(it) }
+            mutableStateListOf(*ordered.toTypedArray())
+        }
+        fun moveEngine(from: Int, to: Int) {
+            if (to !in engineOrder.indices) return
+            val engine = engineOrder.removeAt(from)
+            engineOrder.add(to, engine)
+            state.uiPreferences.setSearchEngineOrder(engineOrder.joinToString(",") { it.name })
+        }
+        // Engines switched off get no results tab.
+        val disabledEngines = remember {
+            mutableStateListOf(*state.uiPreferences.getDisabledSearchEngines().toTypedArray())
+        }
+        fun setEngineEnabled(engine: SearchEngine, on: Boolean) {
+            if (on) disabledEngines.remove(engine.name) else if (engine.name !in disabledEngines) disabledEngines.add(engine.name)
+            state.uiPreferences.setDisabledSearchEngines(disabledEngines.toSet())
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        SettingsSectionHeader(title = stringResource(R.string.section_search_engines))
+        Text(
+            text = stringResource(R.string.hint_tab_sequence),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        SettingsGroup {
+            Column {
+                engineOrder.forEachIndexed { index, engine ->
+                    EngineOrderItem(
+                        engine = engine,
+                        isFirst = index == 0,
+                        isLast = index == engineOrder.size - 1,
+                        onMoveUp = { moveEngine(index, index - 1) },
+                        onMoveDown = { moveEngine(index, index + 1) },
+                        enabled = engine.name !in disabledEngines,
+                        onEnabledChange = { setEngineEnabled(engine, it) },
+                        canDisable = engineOrder.count { it.name !in disabledEngines } > 1,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun AboutSettingsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val versionName = remember(context) {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
+
+    SettingsDetailScaffold(
+        title = stringResource(R.string.settings_cat_about),
+        onBack = onBack
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+        SettingsGroup {
+            SettingsValueRow(
+                icon = Icons.Default.Android,
+                title = stringResource(R.string.about_version),
+                value = versionName
+            )
+            SettingsGroupDivider()
+            SettingsLinkRow(
+                icon = Icons.Default.Code,
+                title = stringResource(R.string.about_source_code),
+                subtitle = stringResource(R.string.about_source_subtitle),
+                onClick = {
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/fuzzyfly0/SearchAndTranslate")))
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+            SettingsGroupDivider()
+            SettingsLinkRow(
+                icon = Icons.Default.Description,
+                title = stringResource(R.string.about_licenses),
+                subtitle = stringResource(R.string.about_licenses_subtitle),
+                onClick = {
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/fuzzyfly0/SearchAndTranslate/blob/main/licenses/THIRD_PARTY_LICENSES.md")))
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+            SettingsGroupDivider()
+            SettingsLinkRow(
+                icon = Icons.Default.Info,
+                title = stringResource(R.string.about_original_project),
+                subtitle = stringResource(R.string.about_original_project_subtitle),
+                onClick = {
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/AKS-Labs/CircleToSearch")))
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(context, context.getString(R.string.toast_could_not_open_link), android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun SettingsGroup(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceBright
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun SettingsGroupDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+    )
+}
+
+@Composable
+private fun SettingsCategoryRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    iconTint: Color = MaterialTheme.colorScheme.primary
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = iconTint
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+    }
+}
+
+@Composable
+private fun SettingsLinkRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    SettingsCategoryRow(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        iconTint = MaterialTheme.colorScheme.primary
+    )
+}
+
+@Composable
+private fun SettingsValueRow(
+    icon: ImageVector,
+    title: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SegmentEditorItem(
+    index: Int,
+    segment: OverlaySegment,
+    overlayPalette: List<Color>,
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit,
+    onUpdate: (OverlaySegment) -> Unit,
+    onDelete: () -> Unit
+) {
+    var showGestureDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    
+    // Get screen dimensions for sliders
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.toFloat() * 3 // Rough dp to px. 
+    val screenHeight = configuration.screenHeightDp.toFloat() * 3
+    // Use actual resource metrics if possible, but LocalConfiguration is easiest in Compose. 
+    // To be safer and strictly follow "screen boundaries", we can clamp. 
+    // But since pixels vary by density, let's allow a generous but bounded range based on config.
+    // 3.0 density is common (XXHDPI). 
+    // We will just use a reasonably high cap matching probable max resolution (e.g. 1440p width -> ~1500, height -> ~3000)
+    // Actually, user said "limit sliders to screen boundaries".
+    // I should probably pass exact screen metrics from MainActivity or Context.
+    val metrics = LocalContext.current.resources.displayMetrics
+    val maxWidth = metrics.widthPixels.toFloat()
+    val maxHeight = metrics.heightPixels.toFloat()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onExpandToggle() }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Layers,
+                    contentDescription = null,
+                    tint = overlayPalette[index % overlayPalette.size],
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.label_overlay_number, index + 1), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.weight(1f))
+                
+                IconButton(onClick = onDelete) {
+                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cd_delete), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                }
+                Icon(
+                    if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null
+                )
+            }
+            
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Dimensions Sliders - Limited to Screen
+                // Dimensions Sliders - Limited to Screen
+                // Only Height is discrete (10px steps) per user request
+                
+                Text(stringResource(R.string.label_x_position, segment.xOffset), style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = segment.xOffset.toFloat().coerceIn(0f, maxWidth),
+                    onValueChange = { onUpdate(segment.copy(xOffset = it.toInt())) },
+                    valueRange = 0f..maxWidth
+                )
+                
+                Text(stringResource(R.string.label_y_position, segment.yOffset), style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = segment.yOffset.toFloat().coerceIn(0f, maxHeight),
+                    onValueChange = { onUpdate(segment.copy(yOffset = it.toInt())) },
+                    valueRange = 0f..maxHeight
+                )
+                
+                Text(stringResource(R.string.label_width, segment.width), style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = segment.width.toFloat().coerceIn(10f, maxWidth),
+                    onValueChange = { onUpdate(segment.copy(width = it.toInt())) },
+                    valueRange = 10f..maxWidth
+                )
+                
+                Text(stringResource(R.string.label_height, segment.height), style = MaterialTheme.typography.labelMedium)
+                val hRange = 10f..3000f
+                val hSteps = ((hRange.endInclusive - hRange.start) / 10).toInt() - 1
+                Slider(
+                    value = segment.height.toFloat().coerceIn(10f, maxHeight),
+                    onValueChange = { onUpdate(segment.copy(height = it.toInt())) },
+                    valueRange = 10f..maxHeight
+                )
+
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Gestures
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { showGestureDialog = true },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.TouchApp, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                         Text(stringResource(R.string.section_gestures), fontWeight = FontWeight.Bold)
+                         Text(stringResource(R.string.gestures_subtitle), style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(Icons.Default.ArrowForwardIos, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Gesture Summary (first 2 non-none)
+                Column {
+                    segment.gestures.entries.filter { it.value != ActionType.NONE }.take(3).forEach {
+                        Text(
+                            "${it.key.getFriendlyName(context)}: ${it.value.getFriendlyName(context)}", 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    if (showGestureDialog) {
+        GestureConfigDialog(
+            segment = segment,
+            onDismiss = { showGestureDialog = false },
+            onUpdate = onUpdate
+        )
+    }
+}
+
+@Composable
+fun GestureConfigDialog(
+    segment: OverlaySegment,
+    onDismiss: () -> Unit,
+    onUpdate: (OverlaySegment) -> Unit
+) {
+    var showAppPicker by remember { mutableStateOf<GestureType?>(null) }
+    val context = LocalContext.current
+    
+    if (showAppPicker != null) {
+        AppPickerDialog(
+            onDismiss = { showAppPicker = null },
+            onAppSelected = { pkg -> 
+                 val gesture = showAppPicker!!
+                 val newGestures = segment.gestures.toMutableMap()
+                 newGestures[gesture] = ActionType.OPEN_APP
+                 
+                 val newData = segment.gestureData.toMutableMap()
+                 newData[gesture] = pkg
+                 
+                 onUpdate(segment.copy(gestures = newGestures, gestureData = newData))
+                 showAppPicker = null
+            }
+        )
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false) // Allow full width control
+    ) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp) // Screen padding
+                .fillMaxHeight(0.85f)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState())
+            ) {
+                Text(stringResource(R.string.title_configure_gestures), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                GestureType.values().forEach { gesture ->
+                    val currentAction = segment.gestures[gesture] ?: ActionType.NONE
+                    var showPicker by remember { mutableStateOf(false) }
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            gesture.getFriendlyName(context), 
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                        )
+                        
+                        Surface(
+                            onClick = { showPicker = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val actionIcon = getActionIcon(currentAction)
+                                Icon(actionIcon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                
+                                var label = currentAction.getFriendlyName(context)
+                                if (currentAction == ActionType.OPEN_APP) {
+                                    val pkg = segment.gestureData[gesture]
+                                    val appName = runCatching { 
+                                        val info = context.packageManager.getApplicationInfo(pkg ?: "", 0)
+                                        context.packageManager.getApplicationLabel(info).toString()
+                                    }.getOrDefault(pkg ?: context.getString(R.string.unknown_app))
+                                    label = stringResource(R.string.label_open_app, appName)
+                                }
+                                
+                                Text(
+                                    label, 
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1, 
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                
+                                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                            }
+                        }
+                    }
+
+                    if (showPicker) {
+                        ActionPickerDialog(
+                            currentAction = currentAction,
+                            onDismiss = { showPicker = false },
+                            onActionSelected = { action ->
+                                if (action == ActionType.OPEN_APP) {
+                                    showAppPicker = gesture
+                                } else {
+                                    val newGestures = segment.gestures.toMutableMap()
+                                    newGestures[gesture] = action
+                                    onUpdate(segment.copy(gestures = newGestures))
+                                }
+                                showPicker = false
+                            }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActionPickerDialog(
+    currentAction: ActionType,
+    onDismiss: () -> Unit,
+    onActionSelected: (ActionType) -> Unit
+) {
+    val context = LocalContext.current
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .fillMaxHeight(0.8f)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(stringResource(R.string.title_select_action), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f)) {
+                    // Google Lens was removed: its action is no longer offered.
+                    val actions = ActionType.values().filter { it != ActionType.SEARCH_LENS }
+                    items(actions.size) { index ->
+                        val action = actions[index]
+                        val isSelected = action == currentAction
+                        
+                        Surface(
+                            onClick = { onActionSelected(action) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    getActionIcon(action), 
+                                    contentDescription = null, 
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    action.getFriendlyName(context),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text(stringResource(R.string.btn_cancel))
+                }
+            }
+        }
+    }
+}
+
+fun getActionIcon(action: ActionType): ImageVector = when (action) {
+    ActionType.NONE -> Icons.Default.Block
+    ActionType.SCREENSHOT -> Icons.Default.Screenshot
+    ActionType.FLASHLIGHT -> Icons.Default.FlashlightOn
+    ActionType.HOME -> Icons.Default.Home
+    ActionType.BACK -> Icons.Default.ArrowBack
+    ActionType.RECENTS -> Icons.Default.History
+    ActionType.LOCK_SCREEN -> Icons.Default.Lock
+    ActionType.OPEN_NOTIFICATIONS -> Icons.Default.Notifications
+    ActionType.OPEN_QUICK_SETTINGS -> Icons.Default.Settings
+    ActionType.SEARCH_LENS -> com.future.cts.ui.AppIcons.Search
+    ActionType.SEARCH_MULTI -> Icons.Default.TravelExplore
+    ActionType.SPLIT_SCREEN -> Icons.Default.VerticalSplit
+    ActionType.OPEN_APP -> Icons.Default.Apps
+    ActionType.SCROLL_TOP -> Icons.Default.VerticalAlignTop
+    ActionType.SCROLL_BOTTOM -> Icons.Default.VerticalAlignBottom
+    ActionType.SCREEN_OFF -> Icons.Default.PowerSettingsNew
+    ActionType.SEARCH_AUTO -> Icons.Default.SettingsSuggest
+    ActionType.TOGGLE_AUTO_ROTATE -> Icons.Default.ScreenRotation
+    ActionType.MEDIA_PLAY_PAUSE -> Icons.Default.PlayArrow
+    ActionType.MEDIA_NEXT -> Icons.Default.SkipNext
+    ActionType.MEDIA_PREVIOUS -> Icons.Default.SkipPrevious
+}
+
+@Composable
+fun AppPickerDialog(onDismiss: () -> Unit, onAppSelected: (String) -> Unit) {
+    val context = LocalContext.current
+    data class AppItem(val label: String, val packageName: String)
+    
+    // Full list
+    var allApps by remember { mutableStateOf<List<AppItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    // Search
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Filtered list
+    val filteredApps = remember(allApps, searchQuery) {
+        if (searchQuery.isEmpty()) allApps
+        else allApps.filter { 
+            it.label.contains(searchQuery, ignoreCase = true) || 
+            it.packageName.contains(searchQuery, ignoreCase = true) 
+        }
+    }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val pm = context.packageManager
+            val allPackages = pm.getInstalledPackages(0)
+            val list = allPackages.mapNotNull { pkg ->
+                val intent = pm.getLaunchIntentForPackage(pkg.packageName)
+                if (intent != null) {
+                    val label = pkg.applicationInfo?.loadLabel(pm).toString()
+                    AppItem(label, pkg.packageName)
+                } else null
+            }.sortedBy { it.label.lowercase() }
+            
+            allApps = list
+            isLoading = false
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .fillMaxHeight(0.85f)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(stringResource(R.string.title_select_app), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.hint_search_apps)) },
+                    leadingIcon = { Icon(com.future.cts.ui.AppIcons.Search, contentDescription = null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                if (isLoading) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                         CircularProgressIndicator()
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(filteredApps.size) { index ->
+                            val app = filteredApps[index]
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onAppSelected(app.packageName) }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // App Icon using AndroidView for performance (avoids Bitmap conversion lag in Compose)
+                                androidx.compose.ui.viewinterop.AndroidView(
+                                    factory = { ctx ->
+                                        android.widget.ImageView(ctx).apply {
+                                            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                                        }
+                                    },
+                                    update = { imageView ->
+                                        // Load icon
+                                        try {
+                                            val icon = context.packageManager.getApplicationIcon(app.packageName)
+                                            imageView.setImageDrawable(icon)
+                                        } catch (e: Exception) {
+                                            imageView.setImageResource(android.R.drawable.sym_def_app_icon)
+                                        }
+                                    },
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                Column {
+                                    Text(app.label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                                    Text(app.packageName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun rememberOverlayPalette(context: Context): List<Color> {
+    return remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            listOf(
+                android.R.color.system_accent1_200,
+                android.R.color.system_accent2_200,
+                android.R.color.system_accent3_200,
+                android.R.color.system_neutral1_200,
+                android.R.color.system_neutral2_200
+            ).map { 
+                Color(ContextCompat.getColor(context, it))
+            }
+        } else {
+            listOf(
+                Color.Red,
+                Color.Green,
+                Color.Blue,
+                Color.Yellow,
+                Color.Magenta
+            )
+        }
+    }
+}

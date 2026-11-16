@@ -24,7 +24,7 @@ plugins {
 }
 
 android {
-    namespace = "com.fuzzyfly0.searchandtranslate"
+    namespace = "com.future.cts"
     compileSdk {
         version = release(36)
     }
@@ -54,7 +54,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.fuzzyfly0.searchandtranslate"
+        applicationId = "com.future.cts"
         minSdk = 29
         targetSdk = 36
         versionCode = 6

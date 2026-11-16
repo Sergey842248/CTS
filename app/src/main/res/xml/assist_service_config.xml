@@ -19,9 +19,9 @@
   -->
 
 <voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:sessionService="com.fuzzyfly0.searchandtranslate.AssistSessionService"
-    android:recognitionService="com.fuzzyfly0.searchandtranslate.SearchAndTranslateRecognitionService"
-    android:settingsActivity="com.fuzzyfly0.searchandtranslate.MainActivity"
+    android:sessionService="com.future.cts.AssistSessionService"
+    android:recognitionService="com.future.cts.SearchAndTranslateRecognitionService"
+    android:settingsActivity="com.future.cts.MainActivity"
     android:supportsAssist="true"
     android:supportsLaunchVoiceAssistFromKeyguard="true"
     android:supportsLocalInteraction="true" />

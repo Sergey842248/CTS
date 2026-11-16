@@ -1,0 +1,98 @@
+/*
+ *
+ *  * Copyright (C) 2025 AKS-Labs (original author)
+ *  *
+ *  * This program is free software: you can redistribute it and/or modify
+ *  * it under the terms of the GNU General Public License as published by
+ *  * the Free Software Foundation, either version 3 of the License, or
+ *  * (at your option) any later version.
+ *  *
+ *  * This program is distributed in the hope that it will be useful,
+ *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  * GNU General Public License for more details.
+ *  *
+ *  * You should have received a copy of the GNU General Public License
+ *  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package com.future.cts.utils
+
+import android.content.Context
+import android.content.SharedPreferences
+
+class UIPreferences(context: Context) {
+    private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
+    
+    companion object {
+        private const val KEY_SEARCH_ENGINE_ORDER = "search_engine_order"
+        private const val KEY_DISABLED_SEARCH_ENGINES = "disabled_search_engines"
+        private const val KEY_LASSO_TRANSLATE = "lasso_translate"
+        private const val KEY_CIRCLE_ACTION = "circle_action"
+        private const val KEY_SONG_SEARCH_APP = "song_search_app"
+        private const val KEY_USE_GOOGLE_LENS_ONLY = "use_google_lens_only"
+
+        /** What happens after an area is circled. */
+        const val CIRCLE_ACTION_ASK = "ask"
+        const val CIRCLE_ACTION_TRANSLATE = "translate"
+        const val CIRCLE_ACTION_SEARCH = "search"
+    }
+
+    fun getSearchEngineOrder(): String? {
+        return prefs.getString(KEY_SEARCH_ENGINE_ORDER, null)
+    }
+
+    fun setSearchEngineOrder(order: String) {
+        prefs.edit().putString(KEY_SEARCH_ENGINE_ORDER, order).apply()
+    }
+
+    /** Names of the search engines switched off in Settings › Search (no results tab). */
+    fun getDisabledSearchEngines(): Set<String> =
+        prefs.getString(KEY_DISABLED_SEARCH_ENGINES, null)
+            ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+
+    fun setDisabledSearchEngines(names: Set<String>) {
+        prefs.edit().putString(KEY_DISABLED_SEARCH_ENGINES, names.joinToString(",")).apply()
+    }
+
+    /**
+     * Action after circling an area: [CIRCLE_ACTION_ASK] (show a Search | Translate
+     * chooser, default), [CIRCLE_ACTION_TRANSLATE] or [CIRCLE_ACTION_SEARCH].
+     * Falls back to the older on/off "translate lasso selection" setting if it was
+     * explicitly changed before this option existed.
+     */
+    fun getCircleAction(): String {
+        prefs.getString(KEY_CIRCLE_ACTION, null)?.let { return it }
+        if (prefs.contains(KEY_LASSO_TRANSLATE)) {
+            return if (prefs.getBoolean(KEY_LASSO_TRANSLATE, true)) CIRCLE_ACTION_TRANSLATE else CIRCLE_ACTION_SEARCH
+        }
+        return CIRCLE_ACTION_ASK
+    }
+
+    fun setCircleAction(action: String) {
+        prefs.edit().putString(KEY_CIRCLE_ACTION, action).apply()
+    }
+
+    /**
+     * Package name of the app the overlay's Song button opens, or "" when the user
+     * has not picked one (the button then falls back to Shazam / SoundHound / Google).
+     * Picked in Settings › Search with the app picker.
+     */
+    fun getSongSearchApp(): String = prefs.getString(KEY_SONG_SEARCH_APP, "") ?: ""
+
+    fun setSongSearchApp(packageName: String) {
+        prefs.edit().putString(KEY_SONG_SEARCH_APP, packageName).apply()
+    }
+
+    /**
+     * true: a circled area is sent straight to Google Lens instead of opening the
+     * multi-engine results sheet. commit() (not apply()) so the accessibility
+     * service and the overlay read the value the settings screen just wrote.
+     */
+    fun isUseGoogleLensOnly(): Boolean = prefs.getBoolean(KEY_USE_GOOGLE_LENS_ONLY, false)
+
+    fun setUseGoogleLensOnly(isEnabled: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_GOOGLE_LENS_ONLY, isEnabled).commit()
+    }
+}

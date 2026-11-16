@@ -1,0 +1,211 @@
+/*
+ *
+ *  * Copyright (C) 2025 AKS-Labs (original author)
+ *  *
+ *  * This program is free software: you can redistribute it and/or modify
+ *  * it under the terms of the GNU General Public License as published by
+ *  * the Free Software Foundation, either version 3 of the License, or
+ *  * (at your option) any later version.
+ *  *
+ *  * This program is distributed in the hope that it will be useful,
+ *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  * GNU General Public License for more details.
+ *  *
+ *  * You should have received a copy of the GNU General Public License
+ *  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+
+package com.future.cts
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.future.cts.onboarding.OnboardingScreen
+import com.future.cts.ui.theme.SearchAndTranslateTheme
+import com.future.cts.ui.wobblepulldown.WobbleHomeScreen
+import com.future.cts.ui.wobblepulldown.isA11yGranted
+import com.future.cts.ui.wobblepulldown.isAssistantGranted
+
+class MainActivity : ComponentActivity() {
+
+    private var pendingSettingsPage by mutableStateOf<String?>(null)
+    private var navTick by mutableStateOf(0)
+    private var forceOnboarding by mutableStateOf(false)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        pendingSettingsPage = pageFor(intent)
+        forceOnboarding = intent.getBooleanExtra(EXTRA_SHOW_ONBOARDING, false)
+        // Only a hint while nothing is set up yet; once a permission is granted it stays quiet.
+        if (!isA11yGranted(this) && !isAssistantGranted(this)) {
+            Toast.makeText(this, getString(R.string.toast_getting_started), Toast.LENGTH_LONG).show()
+        }
+        setContent {
+            SearchAndTranslateTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val context = LocalContext.current
+                    val appPrefs = remember {
+                        context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                    }
+                    var showOnboarding by remember {
+                        mutableStateOf(
+                            forceOnboarding || !appPrefs.getBoolean("onboarding_completed", false)
+                        )
+                    }
+                    if (showOnboarding) {
+                        OnboardingScreen(
+                            onFinish = {
+                                appPrefs.edit().putBoolean("onboarding_completed", true).apply()
+                                showOnboarding = false
+                            }
+                        )
+                    } else {
+                        // Kept outside the screen switch so the overview keeps its scroll
+                        // position when coming back from a settings page.
+                        val homeListState = androidx.compose.foundation.lazy.rememberLazyListState()
+                        var currentScreen by remember {
+                            mutableStateOf(screenFor(pendingSettingsPage))
+                        }
+                        LaunchedEffect(navTick) {
+                            if (navTick > 0) {
+                                currentScreen = screenFor(pendingSettingsPage)
+                            }
+                        }
+                        androidx.compose.animation.Crossfade(targetState = currentScreen) { screen ->
+                            when (screen) {
+                                "settings" -> key(navTick) {
+                                    com.future.cts.ui.OverlaySettingsScreen(
+                                        onBack = {
+                                            pendingSettingsPage = null
+                                            currentScreen = "home"
+                                        },
+                                        initialPage = pendingSettingsPage,
+                                    )
+                                }
+                                // Status & permissions: a regular settings page inside the app
+                                "status" -> {
+                                    androidx.activity.compose.BackHandler { currentScreen = "home" }
+                                    com.future.cts.ui.wobblepulldown.WobbleAppInfoScreen(
+                                        onBackClick = { currentScreen = "home" }
+                                    )
+                                }
+                                else -> {
+                                    WobbleHomeScreen(
+                                        onOpenDeviceInfo = { currentScreen = "status" },
+                                        listState = homeListState,
+                                        onOpenSettings = { page ->
+                                            pendingSettingsPage = page
+                                            currentScreen = "settings"
+                                        },
+                                        openLaunchMethods = pendingSettingsPage == PAGE_LAUNCH_METHODS,
+                                        onLaunchMethodsOpened = { pendingSettingsPage = null },
+                                        contentPadding = WindowInsets.systemBars.asPaddingValues(),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingSettingsPage = pageFor(intent)
+        navTick = navTick + 1
+    }
+
+    /**
+     * The page an intent asks for. The launcher icon (app drawer / home screen) opens Launch
+     * methods only while the accessibility permission is missing, so it can be granted right
+     * there; otherwise the main menu.
+     */
+    private fun pageFor(intent: Intent): String? {
+        intent.getStringExtra(EXTRA_SETTINGS_PAGE)?.let { return it }
+        val fromLauncher = intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER)
+        return if (fromLauncher && !isA11yGranted(this)) PAGE_LAUNCH_METHODS else null
+    }
+
+    /** "about" opens the About page; Launch methods live on the home screen; other pages are settings pages. */
+    private fun screenFor(page: String?): String = when (page) {
+        null, PAGE_LAUNCH_METHODS -> "home"
+        "about" -> "status"
+        else -> "settings"
+    }
+
+    companion object {
+        const val EXTRA_SETTINGS_PAGE = "settings_page"
+        const val PAGE_LAUNCH_METHODS = "launch_methods"
+        /** Dev/testing: re-show the onboarding flow without clearing app data. */
+        const val EXTRA_SHOW_ONBOARDING = "show_onboarding"
+    }
+}
+
+// Helper Functions
+fun isAccessibilityServiceEnabled(context: android.content.Context): Boolean {
+    val expectedComponentName = android.content.ComponentName(context, SearchAndTranslateAccessibilityService::class.java)
+    val enabledServicesSetting = Settings.Secure.getString(
+        context.contentResolver,
+        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+    ) ?: return false
+    
+    val colonSplitter = android.text.TextUtils.SimpleStringSplitter(':')
+    colonSplitter.setString(enabledServicesSetting)
+    
+    while (colonSplitter.hasNext()) {
+        val componentNameString = colonSplitter.next()
+        val enabledComponent = android.content.ComponentName.unflattenFromString(componentNameString)
+        if (enabledComponent != null && enabledComponent == expectedComponentName)
+            return true
+    }
+    return false
+}
+
+fun isDefaultAssistant(context: android.content.Context): Boolean {
+    // Basic check: triggers the settings intent, but actual "is default" check is complex
+    // on some Android versions. For simplified UI, we might relay on user return, 
+    // or use RoleManager on Android 10+. 
+    // For now, let's keep it simple or check specific secure settings if possible.
+    // A reliable check is to see if we are arguably the voice interaction service.
+    
+    val assistant = Settings.Secure.getString(context.contentResolver, "voice_interaction_service")
+    val component = android.content.ComponentName(context, SearchAndTranslateVoiceService::class.java)
+    val myComponentString = component.flattenToString()
+    
+    // Check if our VoiceInteractionService is the one currently set as default
+    return assistant == myComponentString
+}
+
