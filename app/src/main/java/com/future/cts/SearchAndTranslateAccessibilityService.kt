@@ -1086,14 +1086,6 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
             var isScaling = false
             var currentMenu: View? = null
             
-            // --- Phase 45: Sticker Physics ---
-            var velocityTracker: android.view.VelocityTracker? = null
-            var flingAnimator: android.animation.ValueAnimator? = null
-            
-            val stopFling = {
-                flingAnimator?.cancel()
-                flingAnimator = null
-            }
 
             // --- Phase 33: ScaleGestureDetector for pinch zoom ---
             val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -1201,10 +1193,6 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
                         lastTiltTime = event.eventTime
                         isDragging = false
                         isScaling = false
-                        stopFling()
-                        velocityTracker?.recycle()
-                        velocityTracker = android.view.VelocityTracker.obtain()
-                        velocityTracker?.addMovement(event)
                         true
                     }
                     MotionEvent.ACTION_POINTER_DOWN -> {
@@ -1238,7 +1226,6 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
                             rotJob?.cancel()
                         }
 
-                        velocityTracker?.addMovement(event)
                         if (isDragging) {
                             moveWindows(
                                 initialX + (event.rawX - initialTouchX).toInt(),
@@ -1283,73 +1270,9 @@ class SearchAndTranslateAccessibilityService : AccessibilityService() {
                             pinnedView.scaleY = it
                         }
                         rotJob = springAnim(pinnedView.rotation, 0f, 0.4f, 260f) { pinnedView.rotation = it }
-                        if (isDragging) {
-                            velocityTracker?.computeCurrentVelocity(1000)
-                            val vx = velocityTracker?.xVelocity ?: 0f
-                            val vy = velocityTracker?.yVelocity ?: 0f
-                            
-                            if (Math.abs(vx) > 150 || Math.abs(vy) > 150) {
-                                // Physics fling: real-time friction + bouncy edge restitution
-                                flingAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
-                                    duration = 4000
-                                    interpolator = android.view.animation.LinearInterpolator()
-                                    var lastPlayMs = 0L
-                                    var posXf = params.x.toFloat()
-                                    var posYf = params.y.toFloat()
-                                    var currVx = vx * 1.5f
-                                    var currVy = vy * 1.5f
-                                    val display = resources.displayMetrics
-
-                                    addUpdateListener { anim ->
-                                        val nowMs = anim.currentPlayTime
-                                        val dt = ((nowMs - lastPlayMs).coerceIn(0L, 50L)) / 1000f
-                                        lastPlayMs = nowMs
-
-                                        posXf += currVx * dt
-                                        posYf += currVy * dt
-
-                                        // Bounce off screen edges (restitution), but not forever
-                                        if (posXf < 0f) {
-                                            posXf = -posXf
-                                            currVx = if (Math.abs(currVx) < 180f) 0f else -currVx * 0.8f
-                                        } else if (posXf + contentW > display.widthPixels) {
-                                            posXf = 2f * (display.widthPixels - contentW) - posXf
-                                            currVx = if (Math.abs(currVx) < 180f) 0f else -currVx * 0.8f
-                                        }
-                                        if (posYf < 0f) {
-                                            posYf = -posYf
-                                            currVy = if (Math.abs(currVy) < 180f) 0f else -currVy * 0.8f
-                                        } else if (posYf + contentH > display.heightPixels) {
-                                            posYf = 2f * (display.heightPixels - contentH) - posYf
-                                            currVy = if (Math.abs(currVy) < 180f) 0f else -currVy * 0.8f
-                                        }
-
-                                        // Air friction (frame-rate independent)
-                                        val decay = Math.exp(-1.1 * dt).toFloat()
-                                        currVx *= decay
-                                        currVy *= decay
-
-                                        moveWindows(posXf.toInt(), posYf.toInt())
-
-                                        if (Math.hypot(currVx.toDouble(), currVy.toDouble()) < 50.0) {
-                                            anim.cancel()
-                                            flingAnimator = null
-                                        }
-                                    }
-                                    addListener(object : android.animation.AnimatorListenerAdapter() {
-                                        override fun onAnimationEnd(animation: android.animation.Animator) {
-                                            flingAnimator = null
-                                        }
-                                        override fun onAnimationCancel(animation: android.animation.Animator) {
-                                            flingAnimator = null
-                                        }
-                                    })
-                                    start()
-                                }
-                            }
-                        }
-                        velocityTracker?.recycle()
-                        velocityTracker = null
+                        // No fling on release: the sticker stops exactly where the
+                        // finger lifted. Carrying on with the drag's momentum made it
+                        // drift up or down for a second after being dropped into place.
                         true
                     }
                     else -> false
