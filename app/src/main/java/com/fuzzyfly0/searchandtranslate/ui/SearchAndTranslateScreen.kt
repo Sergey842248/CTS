@@ -525,6 +525,25 @@ fun SearchAndTranslateScreen(
     // WebView Cache
     val webViews = remember { mutableMapOf<SearchEngine, WebView>() }
 
+    // The overlay going away is the only place the engine WebViews are torn down: they stay
+    // alive across new selections and sheet closes so a signed-in session (cookies + DOM
+    // storage) survives. Cookies hit the disk first, so the login also survives the process
+    // being killed while the overlay is closed.
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                android.webkit.CookieManager.getInstance().flush()
+            } catch (e: Exception) {}
+            webViews.values.forEach {
+                try {
+                    it.stopLoading()
+                    it.destroy()
+                } catch (e: Exception) {}
+            }
+            webViews.clear()
+        }
+    }
+
     // Clears the pull-to-refresh spinner once the refreshed tab finishes loading.
     fun clearRefreshIfDone(view: WebView?) {
         val re = refreshingEngine
@@ -1006,8 +1025,10 @@ fun SearchAndTranslateScreen(
             isVerticalScrollBarEnabled = false
             isHorizontalScrollBarEnabled = false
 
-            // Enable Third-Party Cookies
-            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+            // Cookies carry the engines' sign-in sessions: keep them enabled and persisted.
+            val cookies = android.webkit.CookieManager.getInstance()
+            cookies.setAcceptCookie(true)
+            cookies.setAcceptThirdPartyCookies(this, true)
 
             // Instrument fetch/XHR so the Lens results RPC (and its status) is
             // visible even when it fails silently. Injected at page start AND
@@ -1104,6 +1125,11 @@ fun SearchAndTranslateScreen(
                     }
                     samplePageBackgroundColor(view)
                     clearRefreshIfDone(view)
+                    // Persist cookies right after a page settles, so a sign-in made in one
+                    // of the engines is on disk even if the process dies afterwards.
+                    try {
+                        android.webkit.CookieManager.getInstance().flush()
+                    } catch (e: Exception) {}
                     // Lens loads its result tabs via async RPCs after page finish.
                     // Snapshot the network + DOM state so silent failures are visible.
                     if (url != null && url.contains("google.") && view != null) {
@@ -1441,16 +1467,10 @@ fun SearchAndTranslateScreen(
                     searchUrl = null
                     preloadedUrls.clear()
                     initializedEngines.clear() // Reset smart loading
-                    // Do NOT destroy webviews here to keep them cached if possible? 
-                    // PROBABLY safer to destroy to avoid stale state from previous searches.
-                    webViews.values.forEach { 
-                        it.stopLoading()
-                        it.clearHistory()
-                        it.clearCache(true)
-                        it.loadUrl("about:blank")
-                        it.destroy() 
-                    }
-                    webViews.clear()
+                    // Keep the WebViews alive: they are reloaded with the new search anyway,
+                    // and tearing them down here wiped the engines' cookies / DOM storage —
+                    // every sign-in was gone with the next selection.
+                    webViews.values.forEach { it.stopLoading() }
                 }
 
                 LaunchedEffect(selectedBitmap) {
@@ -1569,17 +1589,13 @@ fun SearchAndTranslateScreen(
                     }
 
                     // Dynamic Settings Update (User Agent etc) - Now handled at top level
-                    // Cleanup on Dispose
+                    // Cleanup on Dispose: stop loading but keep the engines' session data —
+                    // cookies and DOM storage are what a signed-in account lives in, and
+                    // destroying the views here (plus clearCache) threw that away every time
+                    // the sheet closed. They are destroyed with the overlay itself below.
                     DisposableEffect(Unit) {
                         onDispose {
-                            webViews.values.forEach { 
-                                it.stopLoading()
-                                it.clearHistory()
-                                it.clearCache(true)
-                                it.loadUrl("about:blank")
-                                it.destroy() 
-                            }
-                            webViews.clear()
+                            webViews.values.forEach { it.stopLoading() }
                         }
                     }
 
