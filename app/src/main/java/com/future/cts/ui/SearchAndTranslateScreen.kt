@@ -2037,7 +2037,7 @@ fun SearchAndTranslateScreen(
                 }
             }
 
-            // 5. Bottom Bar — Material 3 Expressive two-row card
+            // 5. Bottom Bar — Material 3 Expressive one-row card
             androidx.compose.animation.AnimatedVisibility(
                 visible = isUIVisible && !isTranslatorMode && !wordSelected,
                 enter = slideInVertically(
@@ -2066,15 +2066,12 @@ fun SearchAndTranslateScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
-                    // One card, two rows on a 5-column grid; buttons are at most 52 dp and the gap
-                    // between buttons fills the rest of each cell.
-                    val cellWidth = maxWidth / 5
-                    val buttonSize = (cellWidth - 8.dp).coerceIn(40.dp, 52.dp)
-                    val buttonGap = (cellWidth - buttonSize).coerceAtLeast(4.dp)
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(buttonGap)
-                    ) {
+                    // One card, one row on a 6-column grid; buttons are at most 52 dp and the
+                    // space between buttons fills the rest of each cell. The 32 dp floor keeps
+                    // the button inside its cell on very narrow screens.
+                    val cellWidth = maxWidth / 6
+                    val buttonSize = (cellWidth - 8.dp).coerceIn(32.dp, 52.dp)
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         // Round button without a visible label; the label is read out by TalkBack.
                         @Composable
                         fun androidx.compose.foundation.layout.RowScope.BottomBarButton(
@@ -2150,7 +2147,7 @@ fun SearchAndTranslateScreen(
                         val circleRegion = pendingChoiceRegion
                         val circleShown = circleRegion != null && selectionRect != null && selectedBitmap == null
 
-                        // ── One row: Share, Search, Translate, Close ──
+                        // ── One row: Share, Search, Translate, Pin, Song, Close ──
                         // (Settings is no longer a dock button: hold Close for 3 s.)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -2220,39 +2217,6 @@ fun SearchAndTranslateScreen(
                                 startFullTranslate(bmp)
                             }
 
-                            // Close: with a circle it is framed and only drops the circle
-                            // (same as Back); otherwise it closes the overlay. Holding it for
-                            // 3 s opens Settings (the old dock logo+gear button is gone).
-                            BottomBarButton(
-                                stringResource(R.string.cd_close),
-                                { Icon(Icons.Default.Close, null) },
-                                framed = circleShown,
-                                onHold = { openSettings() },
-                            ) {
-                                if (circleShown) {
-                                    selectionRect = null
-                                    selectedBitmap = null
-                                    pendingChoiceRegion = null
-                                    isSearching = false
-                                    currentPathPoints.clear()
-                                    scope.launch { selectionAnim.snapTo(0f) }
-                                } else {
-                                    onClose()
-                                }
-                            }
-                        }
-
-                        // ── Second row: Pin, Song ── (Fullscreen and Scan QR were removed:
-                        // whole-screen search is the Search button without a circle, and QR
-                        // codes get their own tappable chip over the code.)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            // Two centered cells of the same grid width as row 1, so the
-                            // shorter row doesn't stretch its buttons apart.
-                            Row(modifier = Modifier.width(cellWidth * 2)) {
                             // Pin: float the selection as a sticker over other apps. Framed while
                             // only a circle is drawn — then just the circle is pinned; with no
                             // selection at all the whole capture is.
@@ -2284,6 +2248,26 @@ fun SearchAndTranslateScreen(
                             BottomBarButton(stringResource(R.string.cd_song_search), { Icon(Icons.Default.MusicNote, null) }) {
                                 launchSongSearch()
                             }
+
+                            // Close: with a circle it is framed and only drops the circle
+                            // (same as Back); otherwise it closes the overlay. Holding it for
+                            // 3 s opens Settings (the old dock logo+gear button is gone).
+                            BottomBarButton(
+                                stringResource(R.string.cd_close),
+                                { Icon(Icons.Default.Close, null) },
+                                framed = circleShown,
+                                onHold = { openSettings() },
+                            ) {
+                                if (circleShown) {
+                                    selectionRect = null
+                                    selectedBitmap = null
+                                    pendingChoiceRegion = null
+                                    isSearching = false
+                                    currentPathPoints.clear()
+                                    scope.launch { selectionAnim.snapTo(0f) }
+                                } else {
+                                    onClose()
+                                }
                             }
                         }
                     }
