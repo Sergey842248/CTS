@@ -31,6 +31,7 @@ class UIPreferences(context: Context) {
         private const val KEY_LASSO_TRANSLATE = "lasso_translate"
         private const val KEY_CIRCLE_ACTION = "circle_action"
         private const val KEY_SONG_SEARCH_APP = "song_search_app"
+        private const val KEY_USE_GOOGLE_LENS_ONLY = "use_google_lens_only"
 
         /** What happens after an area is circled. */
         const val CIRCLE_ACTION_ASK = "ask"
@@ -82,5 +83,16 @@ class UIPreferences(context: Context) {
 
     fun setSongSearchApp(packageName: String) {
         prefs.edit().putString(KEY_SONG_SEARCH_APP, packageName).apply()
+    }
+
+    /**
+     * true: a circled area is sent straight to Google Lens instead of opening the
+     * multi-engine results sheet. commit() (not apply()) so the accessibility
+     * service and the overlay read the value the settings screen just wrote.
+     */
+    fun isUseGoogleLensOnly(): Boolean = prefs.getBoolean(KEY_USE_GOOGLE_LENS_ONLY, false)
+
+    fun setUseGoogleLensOnly(isEnabled: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_GOOGLE_LENS_ONLY, isEnabled).commit()
     }
 }

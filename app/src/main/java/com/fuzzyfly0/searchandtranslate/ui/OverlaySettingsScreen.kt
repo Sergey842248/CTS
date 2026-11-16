@@ -49,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import com.fuzzyfly0.searchandtranslate.R
 import com.fuzzyfly0.searchandtranslate.SearchAndTranslateAccessibilityService
+import com.fuzzyfly0.searchandtranslate.ui.components.UnifiedSearchMethodSelector
 import com.fuzzyfly0.searchandtranslate.data.*
 import com.fuzzyfly0.searchandtranslate.isAccessibilityServiceEnabled
 import com.fuzzyfly0.searchandtranslate.data.SearchEngine
@@ -593,6 +594,16 @@ private fun SearchSettingsScreen(
         onBack = onBack
     ) {
         Spacer(modifier = Modifier.height(8.dp))
+
+        // Search method: hand the selection straight to Google Lens, or open the
+        // multi-engine results sheet (Google / Bing / TinEye).
+        SettingsGroup {
+            Column(modifier = Modifier.padding(16.dp)) {
+                UnifiedSearchMethodSelector(uiPreferences = state.uiPreferences)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
         var circleAction by remember { mutableStateOf(state.uiPreferences.getCircleAction()) }
         SettingsGroup {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {

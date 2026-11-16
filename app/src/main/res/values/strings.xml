@@ -188,6 +188,15 @@
     <string name="toolbar_btn_all">All</string>
     <string name="toolbar_btn_cancel">Cancel</string>
 
+    <!-- Search Method Selector -->
+    <string name="section_search_method">Search method</string>
+    <string name="search_method_multi">Multi-Search</string>
+    <string name="search_method_lens">Google Lens</string>
+    <string name="info_lens_needs_google">Google Lens mode needs the Google app installed.</string>
+
+    <!-- Google Lens Helper -->
+    <string name="toast_lens_unavailable">Google Lens is not available on this device</string>
+    <string name="chooser_google_lens">Search with Google Lens</string>
 
     <!-- Accessibility Service -->
     <string name="pinned_btn_share">Share</string>

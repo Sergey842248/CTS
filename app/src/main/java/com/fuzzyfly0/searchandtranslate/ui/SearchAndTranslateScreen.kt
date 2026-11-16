@@ -205,6 +205,8 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.ContentCopy
+import com.fuzzyfly0.searchandtranslate.ui.components.LensLaunchResult
+import com.fuzzyfly0.searchandtranslate.ui.components.searchWithGoogleLens
 import androidx.compose.material3.Surface
 
 
@@ -1513,6 +1515,31 @@ fun SearchAndTranslateScreen(
                     val bitmap = selectedBitmap
                     if (bitmap != null) {
                         isLoading = true
+
+                        // Google Lens mode (Settings › Search): hand the selection straight to
+                        // Lens instead of opening the multi-engine results sheet. The preference
+                        // is read here rather than remembered, so a change made in Settings is
+                        // picked up by the next search without restarting the overlay.
+                        if (uiPreferences.isUseGoogleLensOnly()) {
+                            val path = ImageUtils.saveBitmap(context, bitmap)
+                            val uri = Uri.fromFile(java.io.File(path))
+                            when (searchWithGoogleLens(uri, context)) {
+                                LensLaunchResult.LAUNCHED_DIRECTLY -> {
+                                    // Lens took over the screen — close the overlay.
+                                    onClose()
+                                    return@LaunchedEffect
+                                }
+                                LensLaunchResult.LAUNCHED_VIA_CHOOSER -> {
+                                    // The system chooser is up: keep the overlay open so the
+                                    // user lands back here after picking an app.
+                                    isLoading = false
+                                    return@LaunchedEffect
+                                }
+                                LensLaunchResult.FAILED -> {
+                                    android.util.Log.e("SearchAndTranslate", "Google Lens launch failed, falling back to multi-search")
+                                }
+                            }
+                        }
 
                         // Multi-Search (Expanded UI)
                         scope.launch { scaffoldState.bottomSheetState.expand() }
