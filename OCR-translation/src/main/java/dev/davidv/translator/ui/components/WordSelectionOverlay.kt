@@ -91,11 +91,28 @@ private fun copyToClipboard(
 private const val MENU_COPY = 1
 private const val MENU_SHARE = 2
 private const val MENU_SEARCH = 3
+private const val MENU_OPEN_LINK = 4
 
 /**
- * A floating text-selection action bar (Copy / Share / Web search) over the image, mirroring the
- * system text toolbar. `textProvider`/`rectProvider` are read live so the bar follows the
- * selection. Returns a callback; the caller drives `startActionMode`.
+ * A selection that *is* a link (`google.com`, `www.google.com`, `https://…`) returns the URL to
+ * open — scheme added when missing — else null. The whole selection must be one token: a
+ * sentence containing a URL is text to share/search, not a link to follow.
+ */
+private fun linkToOpen(text: String): String? {
+  val t = text.trim().trimEnd('.', ',', ';', ':')
+  if (t.isEmpty() || t.any { it.isWhitespace() }) return null
+  if (!t.contains('.')) return null
+  if (!t.startsWith("http://", ignoreCase = true) && !t.startsWith("https://", ignoreCase = true) &&
+    !Regex("^(?:[\\w-]+\\.)+[a-z]{2,}(?::\\d+)?(?:[/?#].*)?$", RegexOption.IGNORE_CASE).matches(t)
+  ) return null
+  return if (t.startsWith("http://", ignoreCase = true) || t.startsWith("https://", ignoreCase = true)) t
+  else "https://$t"
+}
+
+/**
+ * A floating text-selection action bar (Copy / Share / Web search / Open link) over the image,
+ * mirroring the system text toolbar. `textProvider`/`rectProvider` are read live so the bar
+ * follows the selection. Returns a callback; the caller drives `startActionMode`.
  */
 private class SelectionActionModeCallback(
   private val context: Context,
@@ -110,13 +127,21 @@ private class SelectionActionModeCallback(
     menu.add(0, MENU_COPY, 0, android.R.string.copy)
     menu.add(0, MENU_SHARE, 1, "Share")
     menu.add(0, MENU_SEARCH, 2, "Web search")
+    // Hidden until onPrepare sees a link-shaped selection.
+    menu.add(0, MENU_OPEN_LINK, 3, "Open link").isVisible = false
     return true
   }
 
   override fun onPrepareActionMode(
     mode: ActionMode,
     menu: Menu,
-  ): Boolean = false
+  ): Boolean {
+    val item = menu.findItem(MENU_OPEN_LINK) ?: return false
+    val visible = linkToOpen(textProvider()) != null
+    if (item.isVisible == visible) return false
+    item.isVisible = visible
+    return true
+  }
 
   override fun onActionItemClicked(
     mode: ActionMode,
@@ -140,6 +165,21 @@ private class SelectionActionModeCallback(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
           }
         runCatching { context.startActivity(intent) }
+      }
+      MENU_OPEN_LINK -> {
+        val url = linkToOpen(text)
+        if (url != null) {
+          val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          val resolved = runCatching { context.startActivity(intent) }
+          if (resolved.isFailure) {
+            android.widget.Toast.makeText(
+              context,
+              context.getString(R.string.selection_open_link_failed),
+              android.widget.Toast.LENGTH_SHORT,
+            ).show()
+          }
+        }
       }
       else -> return false
     }
@@ -166,7 +206,7 @@ private enum class DragMode { START, END }
  * Persistent Lens-style word selection over the displayed image. Tapping a word selects it (and
  * starts the selection); tapping another word moves the selection; tapping empty space clears it.
  * The selection stays with draggable end handles, and a floating action bar (Copy / Share / Web
- * search) tracks it. A plain drag is left for the container to pan/zoom; only a drag that grabs a
+ * search / Open link) tracks it. A plain drag is left for the container to pan/zoom; only a drag that grabs a
  * handle edits the selection. Nothing is auto-copied.
  *
  * `words` are in image-pixel space; mapped with the image's ContentScale.Fit transform, so this
@@ -244,6 +284,8 @@ fun WordSelectionOverlay(
             ActionMode.TYPE_FLOATING,
           )
       } else {
+        // Re-runs onPrepareActionMode, so "Open link" appears/disappears with the selection.
+        actionMode?.invalidate()
         actionMode?.invalidateContentRect()
       }
     } else {
