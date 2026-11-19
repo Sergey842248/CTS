@@ -137,7 +137,7 @@ android {
     }
 }
 
-// ABI-specific version codes for F-Droid and multi-APK support
+// ABI-specific version codes for multi-APK support
 // arm64-v8a gets a higher code than armeabi-v7a so it's prioritized on compatible devices
 androidComponents {
     onVariants { variant ->

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="fastlane/metadata/android/en-US/images/icon.png" width="160" height="160">
+  <img src="docs/icon.png" width="160" height="160">
   <h1>CTS</h1>
   <p><strong>Circle anything on your screen to search or translate it</strong></p>
   <p>
