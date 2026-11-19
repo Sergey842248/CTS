@@ -57,8 +57,8 @@ android {
         applicationId = "com.future.cts"
         minSdk = 29
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.5.0"
+        versionCode = 100
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
