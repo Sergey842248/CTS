@@ -44,7 +44,7 @@ Draw a circle around anything on your screen – then **search** it or **transla
 ## 📋 Requirements
 
 - Android 10 or newer.
-- Download the APK ending in **`arm64-v8a`** from the [releases](https://github.com/Sergey842248/CTS/releases) – it fits almost every current phone. Use `armeabi-v7a` only for old 32-bit devices.
+- Download the APK from the [releases](https://github.com/Sergey842248/CTS/releases) – one single APK covers every supported phone.
 - For translation, download a language pack once – it contains both the translation and the text-recognition models (Settings › Translator › Language packs).
 
 ## 🔑 Permissions

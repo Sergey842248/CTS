@@ -97,14 +97,8 @@ android {
         }
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
-        }
-    }
+    // No ABI splits: every build produces exactly one APK with all native
+    // libraries in it (arm64-v8a), instead of one APK per architecture.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -133,23 +127,6 @@ android {
             // Debug-agent probe bytes bundled inside kotlinx-coroutines-core;
             // never loaded in production (only by kotlinx-coroutines-debug).
             excludes += "DebugProbesKt.bin"
-        }
-    }
-}
-
-// ABI-specific version codes for multi-APK support
-// arm64-v8a gets a higher code than armeabi-v7a so it's prioritized on compatible devices
-androidComponents {
-    onVariants { variant ->
-        val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2)
-        variant.outputs.forEach { output ->
-            val abi = output.filters.find { 
-                it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI 
-            }?.identifier
-            if (abi != null) {
-                val baseCode = android.defaultConfig.versionCode ?: 0
-                output.versionCode.set(baseCode * 10 + (abiCodes[abi] ?: 0))
-            }
         }
     }
 }
